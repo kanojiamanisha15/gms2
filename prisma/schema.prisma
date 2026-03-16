@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("user")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("users")
+}
+
+model Member {
+  id             Int       @id @default(autoincrement())
+  memberId       String    @unique @map("member_id")
+  name           String
+  email          String?   // nullable in SQL
+  phone          String?   // nullable in SQL
+  membershipType String    @map("membership_type")
+  joinDate       DateTime  @default(now()) @map("join_date")
+  expiryDate     DateTime? @map("expiry_date")
+  status         String    @default("active")
+  paymentStatus  String    @default("unpaid") @map("payment_status")
+  paymentAmount  Decimal   @default(0.0) @db.Decimal(10, 2) @map("payment_amount")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @map("updated_at")
+
+  payments Payment[]
+
+  @@map("members")
+}
+
+model MembershipPlan {
+  id           Int      @id @default(autoincrement())
+  name         String
+  price        Decimal  @db.Decimal(10, 2)
+  durationDays String   @map("duration_days")
+  features     String?
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  @@map("membership_plans")
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  memberId      Int?     @map("member_id")
+  amount        Decimal  @db.Decimal(10, 2)
+  paymentDate   DateTime @default(now()) @map("payment_date")
+  paymentMethod String?  @map("payment_method")
+  status        String   @default("completed")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  member Member? @relation(fields: [memberId], references: [id])
+
+  @@map("payments")
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  category    String
+  description String?
+  amount      Decimal  @db.Decimal(10, 2)
+  date        DateTime
+  status      String   @default("pending")
+  vendor      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@map("expenses")
+}
+
+model Attendance {
+  id           Int      @id @default(autoincrement())
+  memberId     String   @map("member_id")
+  memberName   String   @map("member_name")
+  checkInDate  DateTime @map("check_in_date")
+  checkInTime  String   @map("check_in_time")
+  checkOutDate DateTime? @map("check_out_date")
+  checkOutTime String?  @map("check_out_time")
+  status       String
+  duration     String?  // stored as VARCHAR(20)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @map("updated_at")
+
+  @@map("attendance")
+}
+
+model Trainer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  phone     String
+  role      String
+  hireDate  DateTime @map("hire_date")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@map("trainers")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String
+  type      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
