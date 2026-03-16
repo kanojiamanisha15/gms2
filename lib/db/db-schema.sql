@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Expenses table (gym expenses - based on mockExpenses structure)
+-- Expenses table (gym expenses)
 CREATE TABLE IF NOT EXISTS expenses (
   id SERIAL PRIMARY KEY,
   category VARCHAR(100) NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Attendance table (based on mockAttendance structure)
+-- Attendance table
 CREATE TABLE IF NOT EXISTS attendance (
   id SERIAL PRIMARY KEY,
   member_id VARCHAR(50) NOT NULL,
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS attendance (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Trainers/Staff table (based on mockTrainers structure)
+-- Trainers/Staff table
 CREATE TABLE IF NOT EXISTS trainers (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS trainers (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Notifications table (based on mockNotifications structure)
+-- Notifications table
 CREATE TABLE IF NOT EXISTS notifications (
   id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,

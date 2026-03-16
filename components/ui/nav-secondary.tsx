@@ -12,7 +12,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 
 export function NavSecondary({
@@ -26,12 +25,6 @@ export function NavSecondary({
   }[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname();
-  const { isMobile, setOpenMobile, setOpen } = useSidebar();
-
-  const closeSidebar = () => {
-    if (isMobile) setOpenMobile(false);
-    else setOpen(false);
-  };
 
   return (
     <SidebarGroup {...props}>
@@ -51,7 +44,7 @@ export function NavSecondary({
                       "bg-primary text-primary-foreground hover:bg-primary/90 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
                   )}
                 >
-                  <Link href={item.url} onClick={closeSidebar}>
+                  <Link href={item.url}>
                     <item.icon />
                     <span>{item.title}</span>
                   </Link>

@@ -1,4 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { toLocalDateString } from "@/lib/helpers";
 
 export interface ExpensesTableState {
   searchInput: string;
@@ -13,8 +14,8 @@ const getCurrentMonthDates = () => {
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return {
-    startDate: start.toISOString().split("T")[0],
-    endDate: end.toISOString().split("T")[0],
+    startDate: toLocalDateString(start),
+    endDate: toLocalDateString(end),
   };
 };
 

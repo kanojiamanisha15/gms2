@@ -224,13 +224,12 @@ export function DataTable<TData, TValue>({
                                 )}
                                 {header.column.getCanSort() && (
                                   <ChevronDown
-                                    className={`h-4 w-4 transition-transform ${
-                                      header.column.getIsSorted() === "asc"
-                                        ? "rotate-180"
-                                        : header.column.getIsSorted() === "desc"
+                                    className={`h-4 w-4 transition-transform ${header.column.getIsSorted() === "asc"
+                                      ? "rotate-180"
+                                      : header.column.getIsSorted() === "desc"
                                         ? ""
                                         : "opacity-0"
-                                    }`}
+                                      }`}
                                   />
                                 )}
                               </div>
@@ -308,21 +307,19 @@ export function DataTable<TData, TValue>({
                 <p className="text-sm text-muted-foreground">
                   {serverSidePagination && total !== undefined
                     ? `Showing ${total === 0 ? 0 : (page ?? 1) * (limit ?? 10) - (limit ?? 10) + 1} to ${Math.min((page ?? 1) * (limit ?? 10), total)} of ${total} ${entityName}(s)`
-                    : `Showing ${
-                        table.getFilteredRowModel().rows.length === 0
-                          ? 0
-                          : table.getState().pagination.pageIndex *
-                              table.getState().pagination.pageSize +
-                            1
-                      } to ${
-                        table.getFilteredRowModel().rows.length === 0
-                          ? 0
-                          : Math.min(
-                              (table.getState().pagination.pageIndex + 1) *
-                                table.getState().pagination.pageSize,
-                              table.getFilteredRowModel().rows.length
-                            )
-                      } of ${table.getFilteredRowModel().rows.length} ${entityName}(s)`}
+                    : `Showing ${table.getFilteredRowModel().rows.length === 0
+                      ? 0
+                      : table.getState().pagination.pageIndex *
+                      table.getState().pagination.pageSize +
+                      1
+                    } to ${table.getFilteredRowModel().rows.length === 0
+                      ? 0
+                      : Math.min(
+                        (table.getState().pagination.pageIndex + 1) *
+                        table.getState().pagination.pageSize,
+                        table.getFilteredRowModel().rows.length
+                      )
+                    } of ${table.getFilteredRowModel().rows.length} ${entityName}(s)`}
                 </p>
               </div>
               <div className="flex items-center gap-6">

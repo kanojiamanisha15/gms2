@@ -46,11 +46,14 @@ export function NavUser({
     avatar: string;
   };
 }) {
-  const { isMobile, setOpenMobile, setOpen } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const closeSidebar = () => {
-    if (isMobile) setOpenMobile(false);
-    else setOpen(false);
+    // On mobile, also close the sidebar sheet when navigating.
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+    // On desktop/tablet, keep the sidebar open and let only the dropdown close.
   };
   const {
     mutate: logout,
