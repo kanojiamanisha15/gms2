@@ -131,40 +131,45 @@ export default function NotificationsPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className="space-y-3 w-full">
                     {unreadNotifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className="flex items-start gap-4 p-4 rounded-lg border bg-muted/50 hover:bg-muted transition-colors"
+                        className="flex w-full items-start gap-4 p-4 rounded-lg border bg-muted/50 hover:bg-muted transition-colors"
                       >
                         <div className="mt-0.5">
                           {getNotificationIcon(notification.type)}
                         </div>
                         <div className="flex-1 space-y-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <h4 className="font-semibold text-sm">
-                                {notification.title}
-                              </h4>
+                          <div className="flex items-start justify-between gap-2 w-full">
+                            <div className="w-full">
+                              <div className="flex items-center justify-between gap-2">
+                                <h4 className="font-semibold text-sm">
+                                  {notification.title}
+                                </h4>
+                                <Badge
+                                  variant={getNotificationBadgeVariant(
+                                    notification.type
+                                  )}
+                                  className="shrink-0"
+                                >
+                                  {notification.type}
+                                </Badge>
+                              </div>
+
                               <p className="text-sm text-muted-foreground mt-1">
                                 {notification.message}
                               </p>
                             </div>
-                            <Badge
-                              variant={getNotificationBadgeVariant(
-                                notification.type
-                              )}
-                              className="shrink-0"
-                            >
-                              {notification.type}
-                            </Badge>
+
                           </div>
-                          <div className="flex items-center justify-between mt-2">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2">
                             <span className="text-xs text-muted-foreground">
                               {dayjs(notification.createdAt).fromNow()}
                             </span>
                             <div className="flex items-center gap-2">
                               <Button
+                                className=" !sm:px-3 !px-0 mr-2"
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => markAsRead(notification.id)}

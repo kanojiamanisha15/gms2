@@ -84,7 +84,6 @@ export function ExpensesTable() {
     setLimit,
     setStartDate,
     setEndDate,
-    clearDateRange,
   } = useExpensesTableActions();
   const searchInput = useAppSelector((s) => s.expensesTable.searchInput);
   const page = useAppSelector((s) => s.expensesTable.page);
@@ -229,7 +228,7 @@ export function ExpensesTable() {
   ];
 
   const headerAction = (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-start sm:items-center gap-3">
       <div className="flex items-center gap-2">
         <Label htmlFor="start-date" className="text-xs whitespace-nowrap">
           Start Date
@@ -254,11 +253,6 @@ export function ExpensesTable() {
           className="w-[140px]"
         />
       </div>
-      {(startDate || endDate) && (
-        <Button variant="outline" size="sm" onClick={clearDateRange}>
-          Clear
-        </Button>
-      )}
     </div>
   );
 

@@ -145,7 +145,7 @@ export function DataTable<TData, TValue>({
   const displayHeader =
     header ||
     (headerTitle && (
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
             {headerTitle}
@@ -169,8 +169,8 @@ export function DataTable<TData, TValue>({
         <CardContent>
           <div className="space-y-4">
             {/* Search */}
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1 w-full">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="relative w-full sm:flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={searchPlaceholder}
@@ -186,13 +186,13 @@ export function DataTable<TData, TValue>({
               {showAddButton &&
                 (addButtonHref || onAddClick) &&
                 (onAddClick ? (
-                  <Button onClick={onAddClick}>
+                  <Button onClick={onAddClick} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     {addButtonLabel}
                   </Button>
                 ) : (
-                  <Link href={addButtonHref!}>
-                    <Button>
+                  <Link href={addButtonHref!} className="w-full sm:w-auto">
+                    <Button className="w-full sm:w-auto">
                       <Plus className="h-4 w-4 mr-2" />
                       {addButtonLabel}
                     </Button>
@@ -202,7 +202,8 @@ export function DataTable<TData, TValue>({
 
             {/* Table */}
             <div className="rounded-md border">
-              <Table>
+              <div className="w-full overflow-x-auto">
+                <Table>
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
@@ -298,11 +299,12 @@ export function DataTable<TData, TValue>({
                     </TableRow>
                   )}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground">
                   {serverSidePagination && total !== undefined
@@ -322,8 +324,8 @@ export function DataTable<TData, TValue>({
                     } of ${table.getFilteredRowModel().rows.length} ${entityName}(s)`}
                 </p>
               </div>
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                <div className="flex items-center gap-2 justify-start">
                   <p className="text-sm font-medium">Rows per page</p>
                   <Select
                     value={`${serverSidePagination ? limit ?? defaultPageSize : table.getState().pagination.pageSize}`}
@@ -348,8 +350,8 @@ export function DataTable<TData, TValue>({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-center text-sm font-medium">
+                <div className="flex items-center gap-2 justify-start">
+                  <div className="flex items-center justify-center text-sm font-medium whitespace-nowrap">
                     Page{" "}
                     {serverSidePagination
                       ? page ?? 1

@@ -3,6 +3,7 @@ import { query, queryOne } from '@/lib/db/db';
 import { requireAuth } from '@/lib/services/auth';
 import { insertNotification } from '@/lib/db/notifications';
 import { generateMemberId } from '@/lib/utils/member-id';
+import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { ICreateMemberData, IMemberData, IMemberRow } from '@/types';
 
 function mapMemberRowToResponse(row: IMemberRow): IMemberData {
@@ -102,7 +103,8 @@ export async function POST(request: NextRequest) {
 
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const membershipType = typeof body.membershipType === 'string' ? body.membershipType.trim() : '';
-    const phone = body.phone != null ? String(body.phone).trim() || null : null;
+    const phoneRaw = body.phone != null ? String(body.phone).trim() || null : null;
+    const phone = normalizePhoneToIndia(phoneRaw);
     const joinDateRaw = body.joinDate ?? new Date().toISOString().split('T')[0];
     const joinDate = String(joinDateRaw).trim();
     const expiryDate = body.expiryDate != null ? (String(body.expiryDate).trim() || null) : null;

@@ -27,6 +27,7 @@ import Link from "next/link";
 import { useTrainer, useCreateTrainer, useUpdateTrainer } from "@/hooks/use-trainers";
 import { formatDateForInput } from "@/lib/helpers";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { ContentLoader } from "@/components/ui/content-loader";
 
 type TrainerFormData = {
   name: string;
@@ -138,7 +139,9 @@ export default function AddTrainerPage() {
       }
     >
       <div className="px-4 lg:px-6 space-y-4">
-        {showLoading ?<div>Loading...</div>:
+        {showLoading ? (
+          <ContentLoader message="Loading trainer details..." />
+        ) :
         showError ? (
           <Card>
             <CardContent className="pt-6">

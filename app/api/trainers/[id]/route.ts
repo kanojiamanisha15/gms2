@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
 import { requireAuth } from '@/lib/services/auth';
 import { insertNotification } from '@/lib/db/notifications';
+import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { IUpdateTrainerData, ITrainerData, ITrainerRow } from '@/types';
 
 function mapTrainerRowToResponse(row: ITrainerRow): ITrainerData {
@@ -90,7 +91,8 @@ export async function PUT(
     const email = body.email !== undefined
       ? (body.email != null && String(body.email).trim() ? String(body.email).trim() : null)
       : undefined;
-    const phone = body.phone != null ? (String(body.phone).trim() || null) : undefined;
+    const phoneRaw = body.phone != null ? (String(body.phone).trim() || null) : undefined;
+    const phone = phoneRaw != null ? normalizePhoneToIndia(phoneRaw) ?? undefined : undefined;
     const role = body.role;
     const hireDate = body.hireDate != null ? String(body.hireDate).trim() : undefined;
     const status = body.status;

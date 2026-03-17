@@ -101,7 +101,7 @@ export default function AccountPage() {
       title="Account"
       description="Manage your account settings and profile information"
     >
-      <div className="grid gap-6 md:grid-cols-2 px-4 lg:px-6">
+      <div className="grid gap-6 lg:grid-cols-2 px-4 lg:px-6">
         {/* Profile Information Card */}
         <Card>
           <CardHeader>
@@ -112,8 +112,10 @@ export default function AccountPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+              <Avatar className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20">
+                <AvatarFallback className="text-base sm:text-lg">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <h3 className="text-lg font-semibold">{user.name}</h3>

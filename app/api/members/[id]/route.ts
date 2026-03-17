@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
 import { requireAuth } from '@/lib/services/auth';
 import { insertNotification } from '@/lib/db/notifications';
+import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { IUpdateMemberData, IMemberData, IMemberRow } from '@/types';
 
 function mapMemberRowToResponse(row: IMemberRow): IMemberData {
@@ -93,7 +94,8 @@ export async function PUT(
 
     const name = body.name != null ? String(body.name).trim() : undefined;
     const email = body.email != null ? (String(body.email).trim() || null) : undefined;
-    const phone = body.phone != null ? (String(body.phone).trim() || null) : undefined;
+    const phoneRaw = body.phone != null ? (String(body.phone).trim() || null) : undefined;
+    const phone = phoneRaw != null ? normalizePhoneToIndia(phoneRaw) ?? undefined : undefined;
     const membershipType = body.membershipType != null ? String(body.membershipType).trim() : undefined;
     const joinDate = body.joinDate != null ? String(body.joinDate).trim() : undefined;
     const expiryDate = body.expiryDate != null ? (String(body.expiryDate).trim() || null) : undefined;

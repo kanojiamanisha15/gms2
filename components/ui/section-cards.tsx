@@ -10,6 +10,7 @@ import type { TimePeriod } from "@/lib/services/dashboard";
 import {
   Card,
   CardAction,
+  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -83,9 +84,7 @@ export function OverviewMetricCard({
     <Card className="@container/card">
       <CardHeader>
         <CardDescription>{description}</CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          {value}
-        </CardTitle>
+
         <CardAction>
           <Badge variant="outline">
             {isPositive ? <TrendingUp /> : <TrendingDown />}
@@ -94,6 +93,11 @@ export function OverviewMetricCard({
           </Badge>
         </CardAction>
       </CardHeader>
+      <CardContent>
+        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          {value}
+        </CardTitle>
+      </CardContent>
       <CardFooter className="flex-col items-start gap-1.5 text-sm">
         <div className="line-clamp-1 flex gap-2 font-medium">
           {footerTrendText} this {periodLabel}{" "}
@@ -135,7 +139,7 @@ export function SectionCards() {
 
   return (
     <div className="space-y-4 px-4 lg:px-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Overview</h2>
           <p className="text-sm text-muted-foreground">

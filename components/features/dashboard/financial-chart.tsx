@@ -55,7 +55,10 @@ export function FinancialChart() {
             <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
           </div>
         ) : (
-        <ChartContainer config={chartConfig} className="h-[350px] w-full">
+        <ChartContainer
+          config={chartConfig}
+          className="w-full h-[260px] sm:h-[320px] lg:h-[350px] aspect-auto"
+        >
           <BarChart
             data={chartData}
             margin={{

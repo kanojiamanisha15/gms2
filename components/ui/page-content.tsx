@@ -23,7 +23,7 @@ export function PageContent({
           className={cn("flex flex-col gap-4 py-4 md:gap-6 md:py-6", className)}
         >
           <div className="px-4 lg:px-6">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
               <div>
                 <h1 className="text-2xl font-semibold">{title}</h1>
                 {description && (

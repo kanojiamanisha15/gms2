@@ -29,6 +29,7 @@ import {
   useCreateMembershipPlan,
   useUpdateMembershipPlan,
 } from "@/hooks/use-membership-plans";
+import { ContentLoader } from "@/components/ui/content-loader";
 
 type MembershipPlanFormData = {
   name: string;
@@ -134,7 +135,9 @@ export default function AddMembershipPlanPage() {
       }
     >
       <div className="px-4 lg:px-6 space-y-4">
-        {showLoading ? <div>Loading...</div>:
+        {showLoading ? (
+          <ContentLoader message="Loading plan details..." />
+        ) :
         showError ? (
           <Card>
             <CardContent className="pt-6">

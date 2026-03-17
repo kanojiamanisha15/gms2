@@ -28,6 +28,7 @@ import { useMember, useCreateMember, useUpdateMember } from "@/hooks/use-members
 import { useAllMembershipPlans } from "@/hooks/use-membership-plans";
 import { formatDateForInput, calculateExpirationDate } from "@/lib/helpers";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { ContentLoader } from "@/components/ui/content-loader";
 
 type MemberFormData = {
   name: string;
@@ -164,7 +165,9 @@ export default function AddMemberPage() {
       }
     >
       <div className="px-4 lg:px-6 space-y-4">
-        {showLoading ? <div>Loading...</div>:
+        {showLoading ? (
+          <ContentLoader message="Loading member details..." />
+        ) :
         showError ? (
           <Card>
             <CardContent className="pt-6">

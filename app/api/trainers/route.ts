@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
 import { requireAuth } from '@/lib/services/auth';
 import { insertNotification } from '@/lib/db/notifications';
+import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { ITrainerData, ITrainerRow } from '@/types';
 
 function mapTrainerRowToResponse(row: ITrainerRow): ITrainerData {
@@ -103,7 +104,8 @@ export async function POST(request: NextRequest) {
 
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const email = body.email != null ? (String(body.email).trim() || null) : null;
-    const phone = body.phone != null ? (String(body.phone).trim() || null) : null;
+    const phoneRaw = body.phone != null ? (String(body.phone).trim() || null) : null;
+    const phone = normalizePhoneToIndia(phoneRaw);
     const roleRaw = body.role ?? 'Trainer';
     const role = roleRaw === 'Staff' ? 'Staff' : 'Trainer';
     const hireDateRaw = body.hireDate ?? new Date().toISOString().split('T')[0];
