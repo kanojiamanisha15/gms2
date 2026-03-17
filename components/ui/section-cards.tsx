@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
@@ -21,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const periodLabels: Record<TimePeriod, string> = {
   monthly: "Monthly",
@@ -39,6 +41,93 @@ const defaultData = {
   accountsChange: 0,
   growthChange: 0,
 };
+
+function getPeriodLabel(period: TimePeriod) {
+  switch (period) {
+    case "monthly":
+      return "month";
+    case "quarterly":
+      return "quarter";
+    case "half-yearly":
+      return "half year";
+    case "yearly":
+      return "year";
+    default:
+      return "month";
+  }
+}
+
+function getCurrentPeriodDescription(period: TimePeriod) {
+  return `current ${getPeriodLabel(period)}`;
+}
+
+export type OverviewMetricCardProps = {
+  description: string;
+  value: ReactNode;
+  change: number;
+  periodLabel: string;
+  footerTrendText: string;
+  footerDescription: string;
+};
+
+export function OverviewMetricCard({
+  description,
+  value,
+  change,
+  periodLabel,
+  footerTrendText,
+  footerDescription,
+}: OverviewMetricCardProps) {
+  const isPositive = change >= 0;
+  return (
+    <Card className="@container/card">
+      <CardHeader>
+        <CardDescription>{description}</CardDescription>
+        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          {value}
+        </CardTitle>
+        <CardAction>
+          <Badge variant="outline">
+            {isPositive ? <TrendingUp /> : <TrendingDown />}
+            {isPositive ? "+" : ""}
+            {change.toFixed(2)}%
+          </Badge>
+        </CardAction>
+      </CardHeader>
+      <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <div className="line-clamp-1 flex gap-2 font-medium">
+          {footerTrendText} this {periodLabel}{" "}
+          {isPositive ? (
+            <TrendingUp className="size-4" />
+          ) : (
+            <TrendingDown className="size-4" />
+          )}
+        </div>
+        <div className="text-muted-foreground">{footerDescription}</div>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function OverviewCardSkeleton() {
+  return (
+    <Card className="@container/card">
+      <CardHeader>
+        <Skeleton className="h-4 w-24" />
+        <CardTitle className="space-y-2">
+          <Skeleton className="h-8 w-32 @[250px]/card:h-9" />
+        </CardTitle>
+        <CardAction>
+          <Skeleton className="h-6 w-14 rounded-md" />
+        </CardAction>
+      </CardHeader>
+      <CardFooter className="flex-col items-start gap-1.5 text-sm">
+        <Skeleton className="h-4 w-full max-w-[200px]" />
+        <Skeleton className="h-4 w-full max-w-[160px]" />
+      </CardFooter>
+    </Card>
+  );
+}
 
 export function SectionCards() {
   const [period, setPeriod] = useState<TimePeriod>("monthly");
@@ -74,13 +163,18 @@ export function SectionCards() {
         </p>
       )}
       <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Total Revenue</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {isLoading ? (
-                "—"
-              ) : (
+        {isLoading ? (
+          <>
+            <OverviewCardSkeleton />
+            <OverviewCardSkeleton />
+            <OverviewCardSkeleton />
+            <OverviewCardSkeleton />
+          </>
+        ) : (
+          <>
+            <OverviewMetricCard
+              description="Total Revenue"
+              value={
                 <>
                   Rs.
                   {data.revenue.toLocaleString("en-US", {
@@ -88,146 +182,58 @@ export function SectionCards() {
                     maximumFractionDigits: 2,
                   })}
                 </>
-              )}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                {data.revenueChange >= 0 ? <TrendingUp /> : <TrendingDown />}
-                {data.revenueChange >= 0 ? "+" : ""}
-                {data.revenueChange.toFixed(1)}%
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              {data.revenueChange >= 0 ? "Trending up" : "Trending down"} this{" "}
-              {period === "monthly"
-                ? "month"
-                : period === "quarterly"
-                ? "quarter"
-                : period === "half-yearly"
-                ? "half year"
-                : "year"}{" "}
-              {data.revenueChange >= 0 ? (
-                <TrendingUp className="size-4" />
-              ) : (
-                <TrendingDown className="size-4" />
-              )}
-            </div>
-            <div className="text-muted-foreground">
-              Revenue for the{" "}
-              {period === "monthly"
-                ? "current month"
-                : period === "quarterly"
-                ? "current quarter"
-                : period === "half-yearly"
-                ? "current half year"
-                : "current year"}
-            </div>
-          </CardFooter>
-        </Card>
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>New Customers</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {data.newCustomers.toLocaleString()}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                {data.customersChange >= 0 ? <TrendingUp /> : <TrendingDown />}
-                {data.customersChange >= 0 ? "+" : ""}
-                {data.customersChange.toFixed(1)}%
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              {data.customersChange >= 0 ? "Up" : "Down"}{" "}
-              {Math.abs(data.customersChange)}% this{" "}
-              {period === "monthly"
-                ? "month"
-                : period === "quarterly"
-                ? "quarter"
-                : period === "half-yearly"
-                ? "half year"
-                : "year"}{" "}
-              {data.customersChange >= 0 ? (
-                <TrendingUp className="size-4" />
-              ) : (
-                <TrendingDown className="size-4" />
-              )}
-            </div>
-            <div className="text-muted-foreground">
-              {data.customersChange >= 0
-                ? "Strong customer growth"
-                : "Acquisition needs attention"}
-            </div>
-          </CardFooter>
-        </Card>
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Active Accounts</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {data.activeAccounts.toLocaleString()}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                {data.accountsChange >= 0 ? <TrendingUp /> : <TrendingDown />}
-                {data.accountsChange >= 0 ? "+" : ""}
-                {data.accountsChange.toFixed(1)}%
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              {data.accountsChange >= 0
-                ? "Strong user retention"
-                : "Retention needs improvement"}{" "}
-              {data.accountsChange >= 0 ? (
-                <TrendingUp className="size-4" />
-              ) : (
-                <TrendingDown className="size-4" />
-              )}
-            </div>
-            <div className="text-muted-foreground">
-              {data.accountsChange >= 0
-                ? "Engagement exceed targets"
-                : "Focus on user engagement"}
-            </div>
-          </CardFooter>
-        </Card>
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Growth Rate</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {data.growthRate.toFixed(1)}%
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                {data.growthChange >= 0 ? <TrendingUp /> : <TrendingDown />}
-                {data.growthChange >= 0 ? "+" : ""}
-                {data.growthChange.toFixed(1)}%
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              {data.growthChange >= 0
-                ? "Steady performance increase"
-                : "Performance decline"}{" "}
-              {data.growthChange >= 0 ? (
-                <TrendingUp className="size-4" />
-              ) : (
-                <TrendingDown className="size-4" />
-              )}
-            </div>
-            <div className="text-muted-foreground">
-              {data.growthChange >= 0
-                ? "Meets growth projections"
-                : "Review growth strategy"}
-            </div>
-          </CardFooter>
-        </Card>
+              }
+              change={data.revenueChange}
+              periodLabel={getPeriodLabel(period)}
+              footerTrendText={data.revenueChange >= 0 ? "Trending up" : "Trending down"}
+              footerDescription={`Revenue for the ${getCurrentPeriodDescription(period)}`}
+            />
+            <OverviewMetricCard
+              description="New Customers"
+              value={data.newCustomers.toLocaleString()}
+              change={data.customersChange}
+              periodLabel={getPeriodLabel(period)}
+              footerTrendText={data.customersChange >= 0 ? "Up" : "Down"}
+              footerDescription={
+                data.customersChange >= 0
+                  ? "Strong customer growth"
+                  : "Acquisition needs attention"
+              }
+            />
+            <OverviewMetricCard
+              description="Active Accounts"
+              value={data.activeAccounts.toLocaleString()}
+              change={data.accountsChange}
+              periodLabel={getPeriodLabel(period)}
+              footerTrendText={
+                data.accountsChange >= 0
+                  ? "Strong user retention"
+                  : "Retention needs improvement"
+              }
+              footerDescription={
+                data.accountsChange >= 0
+                  ? "Engagement exceed targets"
+                  : "Focus on user engagement"
+              }
+            />
+            <OverviewMetricCard
+              description="Growth Rate"
+              value={`${data.growthRate.toFixed(2)}%`}
+              change={data.growthChange}
+              periodLabel={getPeriodLabel(period)}
+              footerTrendText={
+                data.growthChange >= 0
+                  ? "Steady performance increase"
+                  : "Performance decline"
+              }
+              footerDescription={
+                data.growthChange >= 0
+                  ? "Meets growth projections"
+                  : "Review growth strategy"
+              }
+            />
+          </>
+        )}
       </div>
     </div>
   );

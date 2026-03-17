@@ -9,7 +9,6 @@ import {
   SquareUserRound,
 } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLogout } from "@/hooks/use-auth";
 import {
   DropdownMenu,
@@ -26,16 +25,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((s) => s[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) || "?";
-}
 
 export function NavUser({
   user,
@@ -61,8 +50,6 @@ export function NavUser({
     isError,
     error,
   } = useLogout();
-  const initials = getInitials(user.name);
-
   const handleLogout = () => {
     logout();
   };
@@ -76,10 +63,9 @@ export function NavUser({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
-              </Avatar>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground shadow-sm">
+                <SquareUserRound className="h-5 w-5" aria-hidden />
+              </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="text-muted-foreground truncate text-xs">
@@ -97,8 +83,8 @@ export function NavUser({
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100">
-                  <SquareUserRound className="h-5 w-5" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
+                  <SquareUserRound className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
