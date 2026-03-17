@@ -80,7 +80,21 @@ export function PaymentsChart() {
                 content={
                   <ChartTooltipContent
                     indicator="line"
-                    formatter={(value) => `Rs.${Number(value).toLocaleString()}`}
+                    labelFormatter={(value) => (
+                      <span className="font-semibold">{value}</span>
+                    )}
+                    formatter={(value, name, item) => {
+                      const label = chartConfig[name as keyof typeof chartConfig]?.label ?? String(name);
+                      const amount = `Rs.${Number(value).toLocaleString()}`;
+                      return (
+                        <div className="flex w-full flex-1 items-center justify-between gap-4">
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="font-mono font-medium tabular-nums text-foreground">
+                            {amount}
+                          </span>
+                        </div>
+                      );
+                    }}
                   />
                 }
               />
