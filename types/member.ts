@@ -1,17 +1,4 @@
 /** Member shape used across the app (table, forms, etc.) */
-export type Member = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  membershipType: string;
-  joinDate: string;
-  expiryDate: string;
-  status: "active" | "inactive" | "expired";
-  paymentStatus: "paid" | "unpaid";
-  paymentAmount: number;
-};
-
 export interface ICreateMemberData {
   name: string;
   email?: string | null;
@@ -68,14 +55,3 @@ export interface IMemberData {
   createdAt?: string;
   updatedAt?: string;
 }
-
-/** Paginated members response */
-export type MembersResponse = {
-  members: Member[];
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-};

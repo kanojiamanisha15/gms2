@@ -1,13 +1,3 @@
-export type Trainer = {
-  id: string;
-  name: string;
-  email?: string | null;
-  phone: string;
-  role: "Trainer" | "Staff";
-  hireDate: string;
-  status: "active" | "inactive";
-};
-
 export interface ICreateTrainerData {
   name: string;
   email?: string | null;

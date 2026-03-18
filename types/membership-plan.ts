@@ -1,13 +1,4 @@
 /** Membership plan shape used across the app */
-export type MembershipPlan = {
-  id: string;
-  name: string;
-  price: number;
-  duration: string;
-  features?: string | null;
-  status: "active" | "inactive";
-};
-
 export interface ICreateMembershipPlanData {
   name: string;
   price: number;
@@ -24,7 +15,6 @@ export interface IUpdateMembershipPlanData {
   status?: "active" | "inactive";
 }
 
-/** Raw plan row from database (snake_case) */
 export interface IMembershipPlanRow {
   id: number;
   name: string;

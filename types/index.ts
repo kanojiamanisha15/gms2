@@ -9,8 +9,6 @@ export type {
 } from './auth';
 
 export type {
-  Member,
-  MembersResponse,
   ICreateMemberData,
   IUpdateMemberData,
   IMemberData,
@@ -18,7 +16,6 @@ export type {
 } from './member';
 
 export type {
-  Trainer,
   ICreateTrainerData,
   IUpdateTrainerData,
   ITrainerData,
@@ -26,7 +23,6 @@ export type {
 } from './trainer';
 
 export type {
-  MembershipPlan,
   ICreateMembershipPlanData,
   IUpdateMembershipPlanData,
   IMembershipPlanData,
