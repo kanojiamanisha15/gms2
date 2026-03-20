@@ -72,12 +72,25 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400 });
     }
 
-    const existing = await queryOne<{ id: number }>(
-      `SELECT id FROM notifications WHERE id = $1`,
+    const existing = await queryOne<{ id: number; title: string; read: boolean }>(
+      `SELECT id, title, read FROM notifications WHERE id = $1`,
       [notifId]
     );
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Notification not found' }, { status: 404 });
+    }
+
+    // Overdue notifications are auto-generated from current data.
+    // If an unread overdue notification is "deleted", dismiss it by marking read
+    // so it does not reappear immediately as unread on the next fetch.
+    const isOverdueNotification =
+      existing.title === 'Payment Overdue' || existing.title === 'Expense Overdue';
+    if (isOverdueNotification && !existing.read) {
+      await query(`UPDATE notifications SET read = true WHERE id = $1`, [notifId]);
+      return NextResponse.json({
+        success: true,
+        data: { message: 'Notification dismissed' },
+      });
     }
 
     await query(`DELETE FROM notifications WHERE id = $1`, [notifId]);

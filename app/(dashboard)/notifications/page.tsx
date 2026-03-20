@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { PageContent } from "@/components/ui/page-content";
 import {
   useNotifications,
@@ -20,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import {
   Bell,
   Check,
+  Loader2,
   X,
   AlertCircle,
   Info,
@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ContentLoader } from "@/components/ui/content-loader";
 
 dayjs.extend(relativeTime);
 
@@ -70,25 +72,81 @@ const getNotificationBadgeVariant = (
   }
 };
 
+function NotificationRowSkeleton({
+  className,
+  footerClassName,
+  showMarkAction = true,
+}: {
+  className: string;
+  footerClassName: string;
+  showMarkAction?: boolean;
+}) {
+  return (
+    <div className={className}>
+      <div className="mt-0.5">
+        <Skeleton className="h-5 w-5" />
+      </div>
+      <div className="flex-1 space-y-1">
+        <div className="flex items-start justify-between gap-2 w-full">
+          <div className="w-full">
+            <div className="flex items-center justify-between gap-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-6 w-20 shrink-0" />
+            </div>
+            <Skeleton className="h-4 w-full mt-1" />
+          </div>
+        </div>
+        <div className={footerClassName}>
+          <Skeleton className="h-3 w-24" />
+          <div className="flex items-center gap-2">
+            {showMarkAction ? <Skeleton className="h-8 w-32 rounded-md" /> : null}
+            <Skeleton className="h-8 w-8 rounded-md" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NotificationsPage() {
   const { data: notifications = [], isLoading, isError, error } = useNotifications();
-  const markReadMutation = useMarkNotificationRead();
-  const markAllReadMutation = useMarkAllNotificationsRead();
-  const deleteMutation = useDeleteNotification();
+  const {
+    mutateAsync: markNotificationRead,
+    isPending: isMarkNotificationReadPending,
+    error: markNotificationReadError,
+    variables: markNotificationReadVariables,
+  } = useMarkNotificationRead();
+
+  const {
+    mutateAsync: markAllNotificationsRead,
+    isPending: isMarkAllNotificationsReadPending,
+    error: markAllNotificationsReadError,
+  } = useMarkAllNotificationsRead();
+
+  const {
+    mutateAsync: deleteNotificationById,
+    isPending: isDeleteNotificationPending,
+    error: deleteNotificationError,
+    variables: deleteNotificationVariables,
+  } = useDeleteNotification();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const actionError =
+    markNotificationReadError ||
+    markAllNotificationsReadError ||
+    deleteNotificationError;
 
-  const markAsRead = (id: string) => {
-    markReadMutation.mutate(id);
-  };
+  const isMarkingReadForNotification = (notificationId: string) =>
+    isMarkNotificationReadPending &&
+    (markNotificationReadVariables as string | undefined) === notificationId;
 
-  const markAllAsRead = () => {
-    markAllReadMutation.mutate();
-  };
+  const isDeletingForNotification = (notificationId: string) =>
+    isDeleteNotificationPending &&
+    (deleteNotificationVariables as string | undefined) === notificationId;
 
-  const deleteNotification = (id: string) => {
-    deleteMutation.mutate(id);
-  };
+  const isNotificationActionLoading = (notificationId: string) =>
+    isMarkingReadForNotification(notificationId) || isDeletingForNotification(notificationId);
+
 
   const unreadNotifications = notifications.filter((n) => !n.read);
   const readNotifications = notifications.filter((n) => n.read);
@@ -101,25 +159,33 @@ export default function NotificationsPage() {
         unreadCount > 0 ? (
           <Button
             variant="outline"
-            onClick={() => markAllAsRead()}
-            disabled={markAllReadMutation.isPending}
+            onClick={() => markAllNotificationsRead()}
+            disabled={isMarkAllNotificationsReadPending}
           >
-            <Check className="h-4 w-4 mr-2" />
+            {isMarkAllNotificationsReadPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Check className="h-4 w-4 mr-2" />
+            )}
             Mark all as read
           </Button>
         ) : null
       }
     >
       <div className="px-4 lg:px-6 space-y-6">
+        {actionError ? (
+          <p className="text-sm text-destructive">
+            {actionError instanceof Error ? actionError.message : "Action failed"}
+          </p>
+        ) : null}
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading notifications...</p>
+          <ContentLoader message="Loading notifications..." />
         ) : isError ? (
           <p className="text-sm text-destructive">
             {error instanceof Error ? error.message : "Failed to load notifications"}
           </p>
         ) :
-          unreadCount > 0 ? (
-            <>
+          (<>
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -133,61 +199,64 @@ export default function NotificationsPage() {
                 <CardContent>
                   <div className="space-y-3 w-full">
                     {unreadNotifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className="flex w-full items-start gap-4 p-4 rounded-lg border bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <div className="mt-0.5">
-                          {getNotificationIcon(notification.type)}
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-start justify-between gap-2 w-full">
-                            <div className="w-full">
-                              <div className="flex items-center justify-between gap-2">
-                                <h4 className="font-semibold text-sm">
-                                  {notification.title}
-                                </h4>
-                                <Badge
-                                  variant={getNotificationBadgeVariant(
-                                    notification.type
-                                  )}
-                                  className="shrink-0"
-                                >
-                                  {notification.type}
-                                </Badge>
+                      isNotificationActionLoading(notification.id) ? (
+                        <NotificationRowSkeleton
+                          key={notification.id}
+                          className="flex w-full items-start gap-4 p-4 rounded-lg border bg-muted/50 hover:bg-muted transition-colors"
+                          footerClassName="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2"
+                          showMarkAction
+                        />
+                      ) : (
+                        <div
+                          key={notification.id}
+                          className="flex w-full items-start gap-4 p-4 rounded-lg border bg-muted/50 hover:bg-muted transition-colors"
+                        >
+                          <div className="mt-0.5">
+                            {getNotificationIcon(notification.type)}
+                          </div>
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-start justify-between gap-2 w-full">
+                              <div className="w-full">
+                                <div className="flex items-center justify-between gap-2">
+                                  <h4 className="font-semibold text-sm">{notification.title}</h4>
+                                  <Badge
+                                    variant={getNotificationBadgeVariant(notification.type)}
+                                    className="shrink-0"
+                                  >
+                                    {notification.type}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {notification.message}
+                                </p>
                               </div>
-
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {notification.message}
-                              </p>
                             </div>
-
-                          </div>
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2">
-                            <span className="text-xs text-muted-foreground">
-                              {dayjs(notification.createdAt).fromNow()}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                className=" !sm:px-3 !px-0 mr-2"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => markAsRead(notification.id)}
-                              >
-                                <Check className="h-4 w-4 mr-1" />
-                                Mark as read
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteNotification(notification.id)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2">
+                              <span className="text-xs text-muted-foreground">
+                                {dayjs(notification.createdAt).fromNow()}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  className=" !sm:px-3 !px-0 mr-2"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => markNotificationRead(notification.id)}
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Mark as read
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteNotificationById(notification.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
+                      )
                     ))}
                   </div>
                 </CardContent>
@@ -206,46 +275,53 @@ export default function NotificationsPage() {
                   {readNotifications.length > 0 ? (
                     <div className="space-y-3">
                       {readNotifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className="flex items-start gap-4 p-4 rounded-lg border opacity-75 hover:opacity-100 transition-opacity"
-                        >
-                          <div className="mt-0.5">
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <h4 className="font-semibold text-sm">
-                                  {notification.title}
-                                </h4>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {notification.message}
-                                </p>
+                        isNotificationActionLoading(notification.id) ? (
+                          <NotificationRowSkeleton
+                            key={notification.id}
+                            className="flex items-start gap-4 p-4 rounded-lg border opacity-75 hover:opacity-100 transition-opacity"
+                            footerClassName="flex items-center justify-between mt-2"
+                            showMarkAction={false}
+                          />
+                        ) : (
+                          <div
+                            key={notification.id}
+                            className="flex items-start gap-4 p-4 rounded-lg border opacity-75 hover:opacity-100 transition-opacity"
+                          >
+                            <div className="mt-0.5">
+                              {getNotificationIcon(notification.type)}
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <h4 className="font-semibold text-sm">
+                                    {notification.title}
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {notification.message}
+                                  </p>
+                                </div>
+                                <Badge
+                                  variant={getNotificationBadgeVariant(notification.type)}
+                                  className="shrink-0"
+                                >
+                                  {notification.type}
+                                </Badge>
                               </div>
-                              <Badge
-                                variant={getNotificationBadgeVariant(
-                                  notification.type
-                                )}
-                                className="shrink-0"
-                              >
-                                {notification.type}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-xs text-muted-foreground">
-                                {dayjs(notification.createdAt).fromNow()}
-                              </span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteNotification(notification.id)}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-xs text-muted-foreground">
+                                  {dayjs(notification.createdAt).fromNow()}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteNotificationById(notification.id)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        )
                       ))}
                     </div>
                   ) : (
@@ -255,8 +331,7 @@ export default function NotificationsPage() {
                   )}
                 </CardContent>
               </Card>
-            </>
-          ) : null}
+            </>)}
 
 
       </div>
