@@ -1,11 +1,25 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PageContent } from "@/components/ui/page-content";
+import { usePermissions } from "@/hooks/use-permissions";
+import { getFirstAccessibleHref } from "@/lib/route-access";
 
 export default function RequestPermissionsPage() {
+  const router = useRouter();
+  const { currentUser } = usePermissions();
+
+  useEffect(() => {
+    const nextHref = getFirstAccessibleHref(currentUser);
+    if (nextHref !== "/request-permissions") {
+      router.replace(nextHref);
+    }
+  }, [currentUser, router]);
+
   const handleRefresh = () => {
-    window.location.reload();
+    router.refresh();
   };
 
   return (
