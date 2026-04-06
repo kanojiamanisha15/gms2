@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission } from '@/lib/services/authorization';
 
 type TimePeriod = 'monthly' | 'quarterly' | 'half-yearly' | 'yearly';
 
@@ -80,8 +81,8 @@ function getPreviousPeriodRange(
 
 /** GET /api/dashboard/overview - Get overview metrics. Query: period (monthly|quarterly|half-yearly|yearly) */
 export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.DASHBOARD_READ);
+  if ('error' in authz) return authz.error;
 
   try {
     const { searchParams } = new URL(request.url);

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, type SortingState } from "@tanstack/react-table";
 import { SectionCards } from "@/components/ui/section-cards";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,6 +15,9 @@ import {
 import { useExpiringMembers } from "@/hooks/use-members";
 import type { ExpiringMember } from "@/lib/services/members";
 import { ChartSkeleton } from "@/lib/utils/lazy-loading";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { useAppSelector, useExpiringMembersTableActions } from "@/lib/store";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -103,10 +106,17 @@ const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear
 export default function Page() {
   const [selectedMonth, setSelectedMonth] = React.useState(String(currentDate.getMonth()));
   const [selectedYear, setSelectedYear] = React.useState(String(currentDate.getFullYear()));
+  const { hasPermission } = usePermissions();
+  const { setSorting } = useExpiringMembersTableActions();
+  const sortBy = useAppSelector((s) => s.expiringMembersTable.sortBy);
+  const sortOrder = useAppSelector((s) => s.expiringMembersTable.sortOrder);
+  const sorting: SortingState = [{ id: sortBy, desc: sortOrder === "desc" }];
 
   const { data: expiringMembers = [], isLoading, isError, error } = useExpiringMembers(
     Number(selectedMonth),
-    Number(selectedYear)
+    Number(selectedYear),
+    sortBy,
+    sortOrder
   );
 
   const monthYearLabel = `${MONTH_NAMES[Number(selectedMonth)]} ${selectedYear}`;
@@ -115,60 +125,78 @@ export default function Page() {
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-          <SectionCards />
-          <div className="px-4 lg:px-6">
+          {hasPermission(PERMISSIONS.DASHBOARD_READ) ? <SectionCards />:null}
+          {hasPermission(PERMISSIONS.DASHBOARD_FINANCIAL) ? <div className="px-4 lg:px-6">
             <FinancialChart />
-          </div>
-          <DataTable
-            columns={columns as never}
-            data={expiringMembers}
-            searchPlaceholder="Search expiring members..."
-            showAddButton={false}
-            isLoading={isLoading}
-            isError={isError}
-            error={error}
-            headerTitle="Members with Plans Expiring by Month"
-            headerDescription={`${expiringMembers.length} member${
-              expiringMembers.length !== 1 ? "s" : ""
-            } with plans expiring in ${monthYearLabel}`}
-            headerAction={
-              <div className="flex items-center gap-2">
-                <Select
-                  value={selectedMonth}
-                  onValueChange={setSelectedMonth}
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue
-                      placeholder="Month"
-                      labels={Object.fromEntries(MONTH_NAMES.map((name, i) => [String(i), name]))}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTH_NAMES.map((name, i) => (
-                      <SelectItem key={name} value={String(i)}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={selectedYear}
-                  onValueChange={setSelectedYear}
-                >
-                  <SelectTrigger className="w-[100px]">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {YEAR_OPTIONS.map((y) => (
-                      <SelectItem key={y} value={String(y)}>
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            }
-          />
+          </div>:null}
+          {hasPermission(PERMISSIONS.EXPIRING_MEMBERS_VIEW) ? (
+            <DataTable
+              columns={columns as never}
+              data={expiringMembers}
+              searchPlaceholder="Search expiring members..."
+              showAddButton={false}
+              isLoading={isLoading}
+              isError={isError}
+              error={error}
+              headerTitle="Members with Plans Expiring by Month"
+              headerDescription={`${expiringMembers.length} member${
+                expiringMembers.length !== 1 ? "s" : ""
+              } with plans expiring in ${monthYearLabel}`}
+              headerAction={
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={selectedMonth}
+                    onValueChange={setSelectedMonth}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue
+                        placeholder="Month"
+                        labels={Object.fromEntries(MONTH_NAMES.map((name, i) => [String(i), name]))}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTH_NAMES.map((name, i) => (
+                        <SelectItem key={name} value={String(i)}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={selectedYear}
+                    onValueChange={setSelectedYear}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YEAR_OPTIONS.map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
+              serverSideSorting
+              sorting={sorting}
+              onSortingChange={(next) => {
+                const first = next[0];
+                setSorting(
+                  first &&
+                    (first.id === "name" ||
+                      first.id === "email" ||
+                      first.id === "phone" ||
+                      first.id === "membershipType" ||
+                      first.id === "expirationDate" ||
+                      first.id === "daysRemaining")
+                    ? { id: first.id, desc: !!first.desc }
+                    : null
+                );
+              }}
+            />
+          ) : null}
         </div>
       </div>
     </div>

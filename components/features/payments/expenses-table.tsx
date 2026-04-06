@@ -2,14 +2,13 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, type SortingState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { DeleteButton } from "@/components/ui/delete-button";
-import { Button } from "@/components/ui/button";
+import { EditButton } from "@/components/ui/edit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil } from "lucide-react";
 import dayjs from "dayjs";
 import { useQuery } from "@tanstack/react-query";
 import { doGetExpenses } from "@/lib/services/expenses";
@@ -17,6 +16,8 @@ import { useCreateExpense, useUpdateExpense, useDeleteExpense } from "@/hooks/us
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAppSelector, useExpensesTableActions } from "@/lib/store";
 import type { IExpenseData } from "@/types";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 // Lazy load the expense form modal (only loads when opened)
 const ExpenseFormModal = dynamic(() => import("./expense-form-modal").then(mod => ({ default: mod.ExpenseFormModal })), {
@@ -43,6 +44,9 @@ function ActionsCell({
   expense: IExpenseData;
   onEdit: (expense: IExpenseData) => void;
 }) {
+  const { hasPermission } = usePermissions();
+  const canUpdateExpense = hasPermission(PERMISSIONS.EXPENSES_UPDATE);
+  const canDeleteExpense = hasPermission(PERMISSIONS.EXPENSES_DELETE);
   const deleteMutation = useDeleteExpense();
 
   const handleDelete = async (id: string): Promise<void> => {
@@ -54,27 +58,31 @@ function ActionsCell({
 
   return (
     <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        onClick={() => onEdit(expense)}
-      >
-        <Pencil className="h-4 w-4" />
-        <span className="sr-only">Edit expense</span>
-      </Button>
-      <DeleteButton
-        id={String(expense.id)}
-        onDelete={handleDelete}
-        entityName="expense"
-        itemName={expense.description ?? expense.category}
-        isLoading={deleteMutation.isPending}
-      />
+      {canUpdateExpense ? (
+        <EditButton
+          id={String(expense.id)}
+          entityName="expense"
+          onClick={() => onEdit(expense)}
+        />
+      ) : null}
+      {canDeleteExpense ? (
+        <DeleteButton
+          id={String(expense.id)}
+          onDelete={handleDelete}
+          entityName="expense"
+          itemName={expense.description ?? expense.category}
+          isLoading={deleteMutation.isPending}
+        />
+      ) : null}
     </div>
   );
 }
 
 export function ExpensesTable() {
+  const { hasPermission } = usePermissions();
+  const canShowActions =
+    hasPermission(PERMISSIONS.EXPENSES_UPDATE) ||
+    hasPermission(PERMISSIONS.EXPENSES_DELETE);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [selectedExpense, setSelectedExpense] = React.useState<IExpenseData | null>(null);
 
@@ -84,16 +92,20 @@ export function ExpensesTable() {
     setLimit,
     setStartDate,
     setEndDate,
+    setSorting,
   } = useExpensesTableActions();
   const searchInput = useAppSelector((s) => s.expensesTable.searchInput);
   const page = useAppSelector((s) => s.expensesTable.page);
   const limit = useAppSelector((s) => s.expensesTable.limit);
   const startDate = useAppSelector((s) => s.expensesTable.startDate);
   const endDate = useAppSelector((s) => s.expensesTable.endDate);
+  const sortBy = useAppSelector((s) => s.expensesTable.sortBy);
+  const sortOrder = useAppSelector((s) => s.expensesTable.sortOrder);
+  const sorting: SortingState = [{ id: sortBy, desc: sortOrder === "desc" }];
   const debouncedSearch = useDebounce(searchInput, 300);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["expenses", debouncedSearch, page, limit, startDate, endDate],
+    queryKey: ["expenses", debouncedSearch, page, limit, startDate, endDate, sortBy, sortOrder],
     queryFn: () =>
       doGetExpenses({
         search: debouncedSearch || undefined,
@@ -101,6 +113,8 @@ export function ExpensesTable() {
         limit,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        sortBy,
+        sortOrder,
       }),
   });
 
@@ -226,6 +240,9 @@ export function ExpensesTable() {
       enableSorting: false,
     },
   ];
+  const displayColumns: ColumnDef<IExpenseData>[] = canShowActions
+    ? columns
+    : columns.filter((column) => column.id !== "actions");
 
   const headerAction = (
     <div className="flex flex-wrap items-start sm:items-center gap-3">
@@ -259,10 +276,11 @@ export function ExpensesTable() {
   return (
     <>
       <DataTable
-        columns={columns}
+        columns={displayColumns}
         data={expenses}
         searchPlaceholder="Search expenses..."
         addButtonLabel="Add Expense"
+        showAddButton={hasPermission(PERMISSIONS.EXPENSES_ADD)}
         entityName="expense"
         onAddClick={handleAdd}
         headerTitle="Expenses"
@@ -275,12 +293,28 @@ export function ExpensesTable() {
         isError={isError}
         error={error}
         serverSidePagination
+        serverSideSorting
         page={page}
         limit={limit}
         total={data?.total}
         totalPages={data?.totalPages}
         onPageChange={setPage}
         onLimitChange={setLimit}
+        sorting={sorting}
+        onSortingChange={(next) => {
+          const first = next[0];
+          setSorting(
+            first &&
+              (first.id === "category" ||
+                first.id === "description" ||
+                first.id === "vendor" ||
+                first.id === "amount" ||
+                first.id === "date" ||
+                first.id === "status")
+              ? { id: first.id, desc: !!first.desc }
+              : null
+          );
+        }}
       />
       <ExpenseFormModal
         open={isModalOpen}

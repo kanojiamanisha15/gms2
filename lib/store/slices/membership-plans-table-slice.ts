@@ -4,12 +4,16 @@ export interface MembershipPlansTableState {
   searchInput: string;
   page: number;
   limit: number;
+  sortBy: "name" | "price" | "duration" | "features" | "status";
+  sortOrder: "asc" | "desc";
 }
 
 const initialState: MembershipPlansTableState = {
   searchInput: "",
   page: 1,
   limit: 10,
+  sortBy: "name",
+  sortOrder: "asc",
 };
 
 export const membershipPlansTableSlice = createSlice({
@@ -27,8 +31,25 @@ export const membershipPlansTableSlice = createSlice({
       state.limit = action.payload;
       state.page = 1;
     },
+    setSorting(
+      state,
+      action: {
+        payload:
+          | { id: "name" | "price" | "duration" | "features" | "status"; desc: boolean }
+          | null;
+      }
+    ) {
+      const next = action.payload;
+      if (!next) {
+        state.sortBy = "name";
+        state.sortOrder = "asc";
+        return;
+      }
+      state.sortBy = next.id;
+      state.sortOrder = next.desc ? "desc" : "asc";
+    },
   },
 });
 
-export const { setSearchInput, setPage, setLimit } = membershipPlansTableSlice.actions;
+export const { setSearchInput, setPage, setLimit, setSorting } = membershipPlansTableSlice.actions;
 export default membershipPlansTableSlice.reducer;

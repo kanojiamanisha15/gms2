@@ -36,6 +36,8 @@ export const doGetMembershipPlans = async (params?: {
   search?: string;
   page?: number;
   limit?: number;
+  sortBy?: 'name' | 'price' | 'duration' | 'features' | 'status';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   plans: IMembershipPlanData[];
   page: number;
@@ -54,6 +56,8 @@ export const doGetMembershipPlans = async (params?: {
       search: params?.search?.trim(),
       page: page.toString(),
       limit: limit.toString(),
+      sortBy: params?.sortBy,
+      sortOrder: params?.sortOrder,
     }
   );
 

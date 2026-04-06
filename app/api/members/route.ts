@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import { generateMemberId } from '@/lib/utils/member-id';
 import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { ICreateMemberData, IMemberData, IMemberRow } from '@/types';
+
+const SORT_FIELDS = {
+  memberId: 'member_id',
+  name: 'name',
+  email: 'email',
+  phone: 'phone',
+  membershipType: 'membership_type',
+  joinDate: 'join_date',
+  expiryDate: 'expiry_date',
+  status: 'status',
+  paymentStatus: 'payment_status',
+  paymentAmount: 'payment_amount',
+} as const;
 
 function mapMemberRowToResponse(row: IMemberRow): IMemberData {
   return {
@@ -26,14 +40,18 @@ function mapMemberRowToResponse(row: IMemberRow): IMemberData {
 
 /** GET /api/members - Return paginated list of members (requires auth). Query: page, limit, search */
 export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERS_READ);
+  if ('error' in authz) return authz.error;
 
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
+    const sortByRaw = searchParams.get('sortBy') ?? 'joinDate';
+    const sortOrderRaw = searchParams.get('sortOrder') ?? 'desc';
     const page = parseInt(searchParams.get('page') ?? '1', 10);
     const limit = parseInt(searchParams.get('limit') ?? '10', 10);
+    const sortBy = (sortByRaw in SORT_FIELDS ? sortByRaw : 'joinDate') as keyof typeof SORT_FIELDS;
+    const sortOrder = sortOrderRaw.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     const pageNum = Math.max(1, page);
     const limitNum = Math.min(Math.max(1, limit), 100);
@@ -52,6 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     const whereSql = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
+    const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, id DESC`;
 
     const countRows = await query<{ total: string }>(
       `SELECT COUNT(*) as total FROM members${whereSql}`,
@@ -66,7 +85,7 @@ export async function GET(request: NextRequest) {
              created_at, updated_at
       FROM members
       ${whereSql}
-      ORDER BY created_at DESC
+      ORDER BY ${orderBySql}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     const memberRows = await query<IMemberRow>(membersSql, [...sqlParams, limitNum, offset]);
@@ -95,8 +114,8 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/members - Create a new member (requires auth). */
 export async function POST(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERS_ADD);
+  if ('error' in authz) return authz.error;
 
   try {
     const body = (await request.json()) as ICreateMemberData;

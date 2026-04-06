@@ -29,6 +29,7 @@ import { useAllMembershipPlans } from "@/hooks/use-membership-plans";
 import { formatDateForInput, calculateExpirationDate } from "@/lib/helpers";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { ContentLoader } from "@/components/ui/content-loader";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 type MemberFormData = {
   name: string;
@@ -171,11 +172,10 @@ export default function AddMemberPage() {
         showError ? (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-destructive">
-                {memberError instanceof Error
-                  ? memberError.message
-                  : "Failed to fetch member. Please try again."}
-              </p>
+              <ErrorMessage
+                error={memberError}
+                fallback="Failed to fetch member. Please try again."
+              />
               <Link href="/members">
                 <Button variant="outline" className="mt-4">
                   Back to Members
@@ -422,13 +422,10 @@ export default function AddMemberPage() {
                   />
                 </div>
 
-                {submitError && (
-                  <p className="text-sm text-destructive">
-                    {submitError instanceof Error
-                      ? submitError.message
-                      : "An error occurred. Please try again."}
-                  </p>
-                )}
+                <ErrorMessage
+                  error={submitError}
+                  fallback="An error occurred. Please try again."
+                />
                 <div className="flex items-center gap-4 justify-end">
                   <Link href="/members">
                     <Button type="button" variant="outline" disabled={isSubmitting}>

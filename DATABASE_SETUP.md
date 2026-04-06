@@ -87,10 +87,6 @@ See `lib/db-schema.sql` for the complete schema definition.
 - `POST /api/auth/login` - Authenticate user and get JWT token
   - Body: `{ email: string, password: string }`
   - Returns: `{ success: true, data: { token: string, user: {...} } }`
-  
-- `POST /api/auth/register` - Register a new user
-  - Body: `{ name: string, email: string, password: string, role?: string }`
-  - Returns: `{ success: true, data: { token: string, user: {...} } }`
 ## Authentication
 
 The API uses JWT (JSON Web Tokens) for authentication. After logging in or registering, you'll receive a token that should be included in the `Authorization` header for protected routes:
@@ -99,4 +95,4 @@ The API uses JWT (JSON Web Tokens) for authentication. After logging in or regis
 Authorization: Bearer <your-token-here>
 ```
 
-The middleware (`middleware.ts`) automatically protects API routes and validates tokens. Public routes like `/api/auth/login` and `/api/auth/register` don't require authentication.
+The middleware (`middleware.ts`) automatically protects API routes and validates tokens. Public routes like `/api/auth/login` don't require authentication.

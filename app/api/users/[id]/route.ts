@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queryOne } from '@/lib/db/db';
-import { requireAuth, comparePassword, hashPassword } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { comparePassword, hashPassword } from '@/lib/services/auth';
+import { requirePermission, requireSession } from '@/lib/services/authorization';
 
 type UserRow = {
   id: number;
@@ -28,67 +30,20 @@ function mapUserToResponse(row: UserRow) {
   };
 }
 
-/** GET /api/users/[id] - Get a user by id (requires auth, own record only) */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
-  const { payload } = auth;
-
-  try {
-    const { id } = await params;
-    const userId = parseInt(id, 10);
-
-    if (!id || isNaN(userId)) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Users can only fetch their own record
-    if (payload.userId !== userId) {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden' },
-        { status: 403 }
-      );
-    }
-
-    const row = await queryOne<UserRow>(
-      'SELECT id, email, name, role, created_at, updated_at FROM users WHERE id = $1',
-      [userId]
-    );
-
-    if (!row) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: mapUserToResponse(row),
-    });
-  } catch (error) {
-    console.error('Get user error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch user' },
-      { status: 500 }
-    );
-  }
-}
-
 /** PUT /api/users/[id] - Update user (requires auth, own record only) */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
-  const { payload } = auth;
+  const authz = await requirePermission(request, PERMISSIONS.MY_ACCOUNT_UPDATE);
+  if ('error' in authz) {
+    return authz.error;
+  }
+  const session = await requireSession(request);
+  if ('error' in session) {
+    return session.error;
+  }
+  const { payload } = session;
 
   try {
     const { id } = await params;

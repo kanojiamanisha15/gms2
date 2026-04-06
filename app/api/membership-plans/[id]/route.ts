@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import type { IUpdateMembershipPlanData, IMembershipPlanData, IMembershipPlanRow } from '@/types';
 
@@ -22,8 +23,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERSHIP_PLANS_UPDATE);
+  if ('error' in authz) return authz.error;
 
   try {
     const { id } = await params;
@@ -69,8 +70,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERSHIP_PLANS_UPDATE);
+  if ('error' in authz) return authz.error;
 
   try {
     const { id } = await params;
@@ -201,8 +202,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERSHIP_PLANS_DELETE);
+  if ('error' in authz) return authz.error;
 
   try {
     const { id } = await params;

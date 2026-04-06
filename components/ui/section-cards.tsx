@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { AlertCircle, TrendingDown, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { useDashboardOverview } from "@/hooks/use-dashboard";
@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 const periodLabels: Record<TimePeriod, string> = {
   monthly: "Monthly",
@@ -69,6 +70,10 @@ export type OverviewMetricCardProps = {
   periodLabel: string;
   footerTrendText: string;
   footerDescription: string;
+  error?: {
+    title: string;
+    description: string;
+  };
 };
 
 export function OverviewMetricCard({
@@ -78,7 +83,35 @@ export function OverviewMetricCard({
   periodLabel,
   footerTrendText,
   footerDescription,
+  error,
 }: OverviewMetricCardProps) {
+  if (error) {
+    return (
+      <Card className="@container/card">
+        <CardHeader>
+          <CardDescription>{description}</CardDescription>
+          <CardAction>
+            <Badge
+              variant="outline"
+              className="text-destructive border-destructive/50"
+            >
+              <AlertCircle className="size-4" />
+              {error.title}
+            </Badge>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <CardTitle className="text-destructive text-2xl font-semibold tabular-nums">
+            —
+          </CardTitle>
+        </CardContent>
+        <CardFooter className="flex-col items-start gap-1.5">
+          <ErrorMessage className="text-left">{error.description}</ErrorMessage>
+        </CardFooter>
+      </Card>
+    );
+  }
+
   const isPositive = change >= 0;
   return (
     <Card className="@container/card">
@@ -136,6 +169,13 @@ function OverviewCardSkeleton() {
 export function SectionCards() {
   const [period, setPeriod] = useState<TimePeriod>("monthly");
   const { data = defaultData, isLoading, isError, error } = useDashboardOverview(period);
+  const overviewCardError = isError
+    ? {
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to load overview",
+      }
+    : undefined;
 
   return (
     <div className="space-y-4 px-4 lg:px-6">
@@ -161,11 +201,6 @@ export function SectionCards() {
           </SelectContent>
         </Select>
       </div>
-      {isError && (
-        <p className="text-sm text-destructive">
-          {error instanceof Error ? error.message : "Failed to load overview"}
-        </p>
-      )}
       <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
         {isLoading ? (
           <>
@@ -191,6 +226,7 @@ export function SectionCards() {
               periodLabel={getPeriodLabel(period)}
               footerTrendText={data.revenueChange >= 0 ? "Trending up" : "Trending down"}
               footerDescription={`Revenue for the ${getCurrentPeriodDescription(period)}`}
+              error={overviewCardError}
             />
             <OverviewMetricCard
               description="New Customers"
@@ -203,6 +239,7 @@ export function SectionCards() {
                   ? "Strong customer growth"
                   : "Acquisition needs attention"
               }
+              error={overviewCardError}
             />
             <OverviewMetricCard
               description="Active Accounts"
@@ -219,6 +256,7 @@ export function SectionCards() {
                   ? "Engagement exceed targets"
                   : "Focus on user engagement"
               }
+              error={overviewCardError}
             />
             <OverviewMetricCard
               description="Growth Rate"
@@ -235,6 +273,7 @@ export function SectionCards() {
                   ? "Meets growth projections"
                   : "Review growth strategy"
               }
+              error={overviewCardError}
             />
           </>
         )}

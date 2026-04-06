@@ -21,6 +21,7 @@ import {
 import { useForm } from "react-hook-form";
 import Link from "next/link";
 import { useLogin } from "@/hooks/use-auth";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 type LoginFormValues = {
   email: string;
@@ -122,11 +123,12 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              {isError && (
-                <p className="text-sm text-destructive">
-                  {error instanceof Error ? error.message : "An error occurred. Please try again."}
-                </p>
-              )}
+              {isError ? (
+                <ErrorMessage
+                  error={error}
+                  fallback="An error occurred. Please try again."
+                />
+              ) : null}
               <Button type="submit" className="w-full" disabled={isPending}>
                 {isPending ? "Signing in..." : "Sign in"}
               </Button>
@@ -136,12 +138,9 @@ export default function LoginPage() {
             <span className="text-muted-foreground">
               Don&apos;t have an account?{" "}
             </span>
-            <Link
-              href="/register"
-              className="text-primary hover:underline font-medium"
-            >
-              Sign up
-            </Link>
+            <span className="text-primary font-medium">
+              Ask an admin to add you.
+            </span>
           </div>
         </CardContent>
       </Card>

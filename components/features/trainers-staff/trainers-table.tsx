@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, type SortingState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { EditButton } from "@/components/ui/edit-button";
@@ -11,8 +11,11 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useAppSelector, useTrainersTableActions } from "@/lib/store";
 import { toast } from "sonner";
 import type { ITrainerData } from "@/types";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 function ActionsCell({ trainer }: { trainer: ITrainerData }) {
+  const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
   const deleteMutation = useMutation({
     mutationFn: (id: number | string) => doDeleteTrainer(id),
@@ -39,18 +42,18 @@ function ActionsCell({ trainer }: { trainer: ITrainerData }) {
 
   return (
     <div className="flex items-center gap-2">
-      <EditButton
+      {hasPermission(PERMISSIONS.TRAINERS_UPDATE) ? <EditButton
         id={String(trainer.id)}
         editPath="/trainers-staff/add-trainer"
         entityName="trainer"
-      />
-      <DeleteButton
+      /> : null}
+      {hasPermission(PERMISSIONS.TRAINERS_DELETE) ? <DeleteButton
         id={String(trainer.id)}
         onDelete={handleDelete}
         entityName="trainer"
         itemName={trainer.name}
         isLoading={deleteMutation.isPending}
-      />
+      /> : null}
     </div>
   );
 }
@@ -129,30 +132,45 @@ const columns: ColumnDef<ITrainerData>[] = [
 ];
 
 export function TrainersTable() {
-  const { setSearchInput, setPage, setLimit } = useTrainersTableActions();
+  const { hasPermission } = usePermissions();
+  const canShowActions =
+    hasPermission(PERMISSIONS.TRAINERS_UPDATE) ||
+    hasPermission(PERMISSIONS.TRAINERS_DELETE);
+  const { setSearchInput, setPage, setLimit, setSorting } = useTrainersTableActions();
   const searchInput = useAppSelector((s) => s.trainersTable.searchInput);
   const page = useAppSelector((s) => s.trainersTable.page);
   const limit = useAppSelector((s) => s.trainersTable.limit);
+  const sortBy = useAppSelector((s) => s.trainersTable.sortBy);
+  const sortOrder = useAppSelector((s) => s.trainersTable.sortOrder);
+  const sorting: SortingState = [{ id: sortBy, desc: sortOrder === "desc" }];
   const debouncedSearch = useDebounce(searchInput, 300);
+  const canAddTrainer = hasPermission(PERMISSIONS.TRAINERS_ADD);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["trainers", debouncedSearch, page, limit],
+    queryKey: ["trainers", debouncedSearch, page, limit, sortBy, sortOrder],
     queryFn: () =>
       doGetTrainers({
         search: debouncedSearch || undefined,
         page,
         limit,
+        sortBy,
+        sortOrder,
       }),
   });
   const trainers: ITrainerData[] = data?.trainers ?? [];
 
+  const displayColumns: ColumnDef<ITrainerData>[] = canShowActions
+    ? columns
+    : columns.filter((column) => column.id !== "actions");
+
   return (
     <DataTable
-      columns={columns}
+      columns={displayColumns}
       data={trainers}
       searchPlaceholder="Search by name, email, or phone..."
       addButtonLabel="Add Trainer/Staff"
       addButtonHref="/trainers-staff/add-trainer"
+      showAddButton={canAddTrainer}
       entityName="trainer"
       serverSideSearch
       searchValue={searchInput}
@@ -161,12 +179,28 @@ export function TrainersTable() {
       isError={isError}
       error={error}
       serverSidePagination
+      serverSideSorting
       page={page}
       limit={limit}
       total={data?.total}
       totalPages={data?.totalPages}
       onPageChange={setPage}
       onLimitChange={setLimit}
+      sorting={sorting}
+      onSortingChange={(next) => {
+        const first = next[0];
+        setSorting(
+          first &&
+            (first.id === "name" ||
+              first.id === "email" ||
+              first.id === "phone" ||
+              first.id === "role" ||
+              first.id === "hireDate" ||
+              first.id === "status")
+            ? { id: first.id, desc: !!first.desc }
+            : null
+        );
+      }}
     />
   );
 }

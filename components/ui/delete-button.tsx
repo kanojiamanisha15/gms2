@@ -14,6 +14,7 @@ interface DeleteButtonProps {
   className?: string;
   size?: "default" | "sm" | "lg" | "icon";
   isLoading?: boolean;
+  disabled?: boolean;
 }
 
 export function DeleteButton({
@@ -24,6 +25,7 @@ export function DeleteButton({
   className,
   size = "icon",
   isLoading = false,
+  disabled = false,
 }: DeleteButtonProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -45,8 +47,10 @@ export function DeleteButton({
           "h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10",
           className
         )}
-        onClick={() => setOpen(true)}
-        disabled={isLoading}
+        onClick={() => {
+          if (!disabled) setOpen(true);
+        }}
+        disabled={isLoading || disabled}
       >
         <Trash2 className="h-4 w-4" />
         <span className="sr-only">Delete {entityName}</span>

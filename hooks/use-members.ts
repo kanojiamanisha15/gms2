@@ -9,10 +9,15 @@ import {
 import type { ICreateMemberData, IUpdateMemberData } from "@/types";
 
 /** Hook to fetch members expiring in a given month/year */
-export function useExpiringMembers(month: number, year: number) {
+export function useExpiringMembers(
+  month: number,
+  year: number,
+  sortBy?: "name" | "email" | "phone" | "membershipType" | "expirationDate" | "daysRemaining",
+  sortOrder?: "asc" | "desc"
+) {
   return useQuery({
-    queryKey: ["members", "expiring", month, year],
-    queryFn: () => doGetExpiringMembers({ month, year }),
+    queryKey: ["members", "expiring", month, year, sortBy, sortOrder],
+    queryFn: () => doGetExpiringMembers({ month, year, sortBy, sortOrder }),
     enabled: month >= 0 && month <= 11 && year >= 1900 && year <= 2100,
   });
 }

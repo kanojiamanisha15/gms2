@@ -38,6 +38,8 @@ export const doGetExpenses = async (params?: {
   limit?: number;
   startDate?: string;
   endDate?: string;
+  sortBy?: 'category' | 'description' | 'vendor' | 'amount' | 'date' | 'status';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   expenses: IExpenseData[];
   page: number;
@@ -57,6 +59,8 @@ export const doGetExpenses = async (params?: {
   if (params?.search?.trim()) queryParams.search = params.search.trim();
   if (params?.startDate?.trim()) queryParams.startDate = params.startDate.trim();
   if (params?.endDate?.trim()) queryParams.endDate = params.endDate.trim();
+  if (params?.sortBy) queryParams.sortBy = params.sortBy;
+  if (params?.sortOrder) queryParams.sortOrder = params.sortOrder;
 
   const response = await getRequest<ExpensesListResponse>(
     API_ENDPOINTS.EXPENSES,

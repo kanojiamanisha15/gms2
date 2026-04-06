@@ -28,6 +28,7 @@ import { useTrainer, useCreateTrainer, useUpdateTrainer } from "@/hooks/use-trai
 import { formatDateForInput } from "@/lib/helpers";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { ContentLoader } from "@/components/ui/content-loader";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 type TrainerFormData = {
   name: string;
@@ -145,11 +146,10 @@ export default function AddTrainerPage() {
         showError ? (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-destructive">
-                {trainerError instanceof Error
-                  ? trainerError.message
-                  : "Failed to fetch trainer. Please try again."}
-              </p>
+              <ErrorMessage
+                error={trainerError}
+                fallback="Failed to fetch trainer. Please try again."
+              />
               <Link href="/trainers-staff">
                 <Button variant="outline" className="mt-4">
                   Back to Trainers/Staff
@@ -314,13 +314,10 @@ export default function AddTrainerPage() {
                     />
                   </div>
 
-                  {submitError && (
-                    <p className="text-sm text-destructive">
-                      {submitError instanceof Error
-                        ? submitError.message
-                        : "An error occurred. Please try again."}
-                    </p>
-                  )}
+                  <ErrorMessage
+                    error={submitError}
+                    fallback="An error occurred. Please try again."
+                  />
                   <div className="flex items-center gap-4 justify-end">
                     <Link href="/trainers-staff">
                       <Button type="button" variant="outline" disabled={isSubmitting}>

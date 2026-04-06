@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission } from '@/lib/services/authorization';
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -9,8 +10,8 @@ const MONTH_LABELS = [
 
 /** GET /api/dashboard/financial-chart - Get revenue, expenses, profit for last 12 months */
 export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.DASHBOARD_FINANCIAL);
+  if ('error' in authz) return authz.error;
 
   try {
     const now = new Date();

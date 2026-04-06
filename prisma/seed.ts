@@ -1,6 +1,33 @@
 // prisma/seed.ts
+import { execSync } from 'node:child_process';
+import { join } from 'node:path';
+import { config as loadEnv } from 'dotenv';
 import { seedDefaultUser } from '@/lib/db/seeds/default-user';
 import { queryOne, query } from '@/lib/db/db';
+import { resolveDatabaseUrl } from '@/lib/db/database-url';
+
+loadEnv({ path: join(process.cwd(), '.env') });
+loadEnv({ path: join(process.cwd(), '.env.local') });
+
+const databaseUrl = resolveDatabaseUrl();
+if (!databaseUrl) {
+  console.error(
+    'Set DATABASE_URL in .env / .env.local, or set DB_HOST, DB_NAME, DB_USER, and DB_PASSWORD.'
+  );
+  process.exit(1);
+}
+process.env.DATABASE_URL = databaseUrl;
+
+console.log('Applying database migrations...');
+try {
+  execSync('npx prisma migrate deploy', {
+    stdio: 'inherit',
+    cwd: process.cwd(),
+    env: process.env,
+  });
+} catch {
+  process.exit(1);
+}
 
 async function seedMembers() {
     const existing = await queryOne<{ count: string }>(

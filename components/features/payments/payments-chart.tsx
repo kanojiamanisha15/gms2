@@ -16,6 +16,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { usePaymentsOverview } from "@/hooks/use-payments";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 const chartConfig = {
   received: {
@@ -43,9 +44,11 @@ export function PaymentsChart() {
       </CardHeader>
       <CardContent>
         {isError ? (
-          <p className="text-sm text-destructive mb-4">
-            {error instanceof Error ? error.message : "Failed to load chart data"}
-          </p>
+          <ErrorMessage
+            error={error}
+            fallback="Failed to load chart data"
+            className="mb-4"
+          />
         ):
         isLoading ? (
           <div className="h-[350px] w-full flex items-center justify-center bg-muted/50 rounded-lg">

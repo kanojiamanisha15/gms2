@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission } from '@/lib/services/authorization';
 
 /** PUT /api/notifications/read-all - Mark all notifications as read */
 export async function PUT(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.NOTIFICATIONS_MARK_ALL_AS_READ);
+  if ('error' in authz) return authz.error;
 
   try {
     await query(`UPDATE notifications SET read = true WHERE read = false`);

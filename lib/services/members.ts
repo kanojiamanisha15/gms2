@@ -36,6 +36,18 @@ export const doGetMembers = async (params?: {
   search?: string;
   page?: number;
   limit?: number;
+  sortBy?:
+    | 'memberId'
+    | 'name'
+    | 'email'
+    | 'phone'
+    | 'membershipType'
+    | 'joinDate'
+    | 'expiryDate'
+    | 'status'
+    | 'paymentStatus'
+    | 'paymentAmount';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   members: IMemberData[];
   page: number;
@@ -54,6 +66,8 @@ export const doGetMembers = async (params?: {
       search: params?.search?.trim(),
       page: page.toString(),
       limit: limit.toString(),
+      sortBy: params?.sortBy,
+      sortOrder: params?.sortOrder,
     }
   );
 
@@ -93,12 +107,22 @@ type ExpiringMembersResponse = {
 export const doGetExpiringMembers = async (params: {
   month: number;
   year: number;
+  sortBy?:
+    | "name"
+    | "email"
+    | "phone"
+    | "membershipType"
+    | "expirationDate"
+    | "daysRemaining";
+  sortOrder?: "asc" | "desc";
 }): Promise<ExpiringMember[]> => {
   const response = await getRequest<ExpiringMembersResponse>(
     API_ENDPOINTS.MEMBERS_EXPIRING,
     {
       month: params.month.toString(),
       year: params.year.toString(),
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder,
     }
   );
 

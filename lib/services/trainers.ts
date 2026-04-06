@@ -36,6 +36,8 @@ export const doGetTrainers = async (params?: {
   search?: string;
   page?: number;
   limit?: number;
+  sortBy?: 'name' | 'email' | 'phone' | 'role' | 'hireDate' | 'status';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   trainers: ITrainerData[];
   page: number;
@@ -54,6 +56,8 @@ export const doGetTrainers = async (params?: {
       search: params?.search?.trim(),
       page: page.toString(),
       limit: limit.toString(),
+      sortBy: params?.sortBy,
+      sortOrder: params?.sortOrder,
     }
   );
 

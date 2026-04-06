@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ErrorMessage } from "@/components/ui/error-message";
 import {
   Bell,
   Check,
@@ -173,17 +174,17 @@ export default function NotificationsPage() {
       }
     >
       <div className="px-4 lg:px-6 space-y-6">
-        {actionError ? (
-          <p className="text-sm text-destructive">
-            {actionError instanceof Error ? actionError.message : "Action failed"}
-          </p>
-        ) : null}
+        <ErrorMessage
+          error={actionError}
+          fallback="Action failed"
+        />
         {isLoading ? (
           <ContentLoader message="Loading notifications..." />
         ) : isError ? (
-          <p className="text-sm text-destructive">
-            {error instanceof Error ? error.message : "Failed to load notifications"}
-          </p>
+          <ErrorMessage
+            error={error}
+            fallback="Failed to load notifications"
+          />
         ) :
           (<>
               <Card>

@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { Mail, Calendar, Loader2 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-auth";
 import { useUpdateUser } from "@/hooks/use-users";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 type AccountFormValues = {
   name: string;
@@ -82,9 +83,10 @@ export default function AccountPage() {
         title="Account"
         description="Manage your account settings and profile information"
       >
-        <p className="px-4 text-sm text-destructive">
-          {error instanceof Error ? error.message : "Failed to load account"}
-        </p>
+        <ErrorMessage
+          error={error ?? "Failed to load account"}
+          className="px-4"
+        />
       </PageContent>
     );
   }

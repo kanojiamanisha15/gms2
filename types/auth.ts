@@ -5,13 +5,6 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  role?: string;
-}
-
 export interface AuthResponse {
   success: boolean;
   data?: {
@@ -37,6 +30,7 @@ export interface User {
   name: string;
   email: string;
   role?: string;
+  permissions?: string[];
   created_at: string;
   updated_at: string;
 }

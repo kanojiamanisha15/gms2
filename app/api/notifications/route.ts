@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 
 export type NotificationRow = {
@@ -77,8 +78,8 @@ async function ensureOverdueNotifications() {
 
 /** GET /api/notifications - List notifications (creates overdue ones first) */
 export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.NOTIFICATIONS_READ);
+  if ('error' in authz) return authz.error;
 
   try {
     await ensureOverdueNotifications();

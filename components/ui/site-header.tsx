@@ -19,13 +19,22 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from "@/hooks/use-notifications";
+import { usePermissions } from "@/hooks/use-permissions";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 dayjs.extend(relativeTime);
 
 export function SiteHeader() {
-  const { data: notifications = [], isLoading, isError } = useNotifications();
+  const {
+    data: notifications = [],
+    isLoading,
+    isError,
+    error: notificationsError,
+  } = useNotifications();
+  const { hasPermission } = usePermissions();
   const markReadMutation = useMarkNotificationRead();
   const markAllReadMutation = useMarkAllNotificationsRead();
 
@@ -36,7 +45,7 @@ export function SiteHeader() {
     if (!read) {
       markReadMutation.mutate(id);
     }
-  };
+  };  
 
   const handleMarkAllRead = () => {
     if (unreadCount > 0) {
@@ -54,7 +63,7 @@ export function SiteHeader() {
         />
         <div className="ml-auto flex items-center gap-2">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            {hasPermission(PERMISSIONS.NOTIFICATIONS_READ) ? <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
@@ -68,7 +77,7 @@ export function SiteHeader() {
                   </span>
                 )}
               </Button>
-            </DropdownMenuTrigger>
+            </DropdownMenuTrigger>:null}
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel className="flex items-center justify-between">
                 <span>Notifications</span>
@@ -102,9 +111,11 @@ export function SiteHeader() {
                   Loading notifications...
                 </div>
               ) : isError ? (
-                <div className="p-4 text-center text-sm text-destructive">
-                  Failed to load notifications
-                </div>
+                <ErrorMessage
+                  error={notificationsError}
+                  fallback="Failed to load notifications"
+                  className="p-4 text-center"
+                />
               ) : recentNotifications.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">
                   No notifications

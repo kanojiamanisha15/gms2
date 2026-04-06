@@ -1,18 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/ui/app-sidebar";
 import { SiteHeader } from "@/components/ui/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useCurrentUser } from "@/hooks/use-auth";
 import { PageLoader } from "@/components/ui/page-loader";
+import {
+  canAccessPathname,
+  getFirstAccessibleHref,
+} from "@/lib/route-access";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const router = useRouter();
   const { data: user, isLoading, isError, isFetched } = useCurrentUser();
 
@@ -21,6 +26,13 @@ export default function DashboardLayout({
       router.replace("/login");
     }
   }, [isFetched, isError, user, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!canAccessPathname(pathname, user)) {
+      router.replace(getFirstAccessibleHref(user));
+    }
+  }, [pathname, user, router]);
 
   if (isLoading) {
     return <PageLoader message="Loading..." />;

@@ -16,6 +16,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { useFinancialChart } from "@/hooks/use-dashboard";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 const chartConfig = {
   revenue: {
@@ -47,9 +48,11 @@ export function FinancialChart() {
       </CardHeader>
       <CardContent>
         {isError ? (
-          <p className="text-sm text-destructive mb-4">
-            {error instanceof Error ? error.message : "Failed to load chart data"}
-          </p>
+          <ErrorMessage
+            error={error}
+            fallback="Failed to load chart data"
+            className="mb-4"
+          />
         ) : isLoading ? (
           <div className="h-[350px] w-full flex items-center justify-center bg-muted/50 rounded-lg">
             <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />

@@ -7,10 +7,12 @@ import { cn } from "@/lib/utils";
 
 interface EditButtonProps {
   id: string;
-  editPath: string;
+  editPath?: string;
   entityName?: string;
   className?: string;
   size?: "default" | "sm" | "lg" | "icon";
+  disabled?: boolean;
+  onClick?: () => void;
 }
 
 export function EditButton({
@@ -19,6 +21,8 @@ export function EditButton({
   entityName = "item",
   className,
   size = "icon",
+  disabled = false,
+  onClick,
 }: EditButtonProps) {
   const router = useRouter();
 
@@ -27,8 +31,16 @@ export function EditButton({
       variant="ghost"
       size={size}
       className={cn("h-8 w-8", className)}
+      disabled={disabled}
       onClick={() => {
-        router.push(`${editPath}/${id}`);
+        if (disabled) return;
+        if (onClick) {
+          onClick();
+          return;
+        }
+        if (editPath) {
+          router.push(`${editPath}/${id}`);
+        }
       }}
     >
       <Pencil className="h-4 w-4" />
