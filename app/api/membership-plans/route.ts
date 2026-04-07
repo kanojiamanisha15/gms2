@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
 import { PERMISSIONS } from '@/lib/constants/permissions';
-import { requirePermission } from '@/lib/services/authorization';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import type { IMembershipPlanData, IMembershipPlanRow } from '@/types';
 
@@ -11,6 +11,7 @@ const SORT_FIELDS = {
   duration: 'duration_days',
   features: 'features',
   status: 'status',
+  gymId: 'gym_id',
 } as const;
 
 function mapPlanRowToResponse(row: IMembershipPlanRow): IMembershipPlanData {
@@ -21,6 +22,7 @@ function mapPlanRowToResponse(row: IMembershipPlanRow): IMembershipPlanData {
     duration: row.duration_days,
     features: row.features,
     status: row.status,
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -34,6 +36,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
     const sortByRaw = searchParams.get('sortBy') ?? 'name';
     const sortOrderRaw = searchParams.get('sortOrder') ?? 'asc';
     const page = parseInt(searchParams.get('page') ?? '1', 10);
@@ -56,6 +60,11 @@ export async function GET(request: NextRequest) {
       sqlParams.push(`%${search.trim()}%`);
       paramIndex++;
     }
+    if (scope.gymId != null) {
+      conditions.push(`gym_id = $${paramIndex}`);
+      sqlParams.push(scope.gymId);
+      paramIndex++;
+    }
 
     const whereSql = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
     const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, id ASC`;
@@ -69,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     const plansSql = `
       SELECT id, name, price, duration_days, features, status,
-             created_at, updated_at
+             gym_id, created_at, updated_at
       FROM membership_plans
       ${whereSql}
       ORDER BY ${orderBySql}
@@ -111,6 +120,7 @@ export async function POST(request: NextRequest) {
       duration?: string;
       features?: string | null;
       status?: string;
+      gymId?: number | null;
     };
 
     const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -118,6 +128,9 @@ export async function POST(request: NextRequest) {
     const duration = typeof body.duration === 'string' ? body.duration.trim() : '';
     const features = body.features != null ? (String(body.features).trim() || null) : null;
     const status = body.status === 'inactive' ? 'inactive' : 'active';
+    const scope = resolveRequestedGymScope(authz, body.gymId);
+    if (scope.error) return scope.error;
+    const gymId = scope.gymId;
 
     if (!name) {
       return NextResponse.json(
@@ -139,9 +152,9 @@ export async function POST(request: NextRequest) {
     }
 
     const insertSql = `
-      INSERT INTO membership_plans (name, price, duration_days, features, status)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, name, price, duration_days, features, status,
+      INSERT INTO membership_plans (name, price, duration_days, features, status, gym_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, name, price, duration_days, features, status, gym_id,
                 created_at, updated_at
     `;
     const planRow = await queryOne<IMembershipPlanRow>(insertSql, [
@@ -150,6 +163,7 @@ export async function POST(request: NextRequest) {
       duration,
       features,
       status,
+      gymId,
     ]);
 
     if (!planRow) {

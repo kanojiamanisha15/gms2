@@ -35,7 +35,7 @@ const FinancialChart = dynamic(() => import("@/components/features/dashboard/fin
   ssr: false,
 });
 
-const columns: ColumnDef<ExpiringMember>[] = [
+const expiringMembersBaseColumns: ColumnDef<ExpiringMember>[] = [
   {
     accessorKey: "name",
     header: "Member Name",
@@ -100,13 +100,32 @@ const columns: ColumnDef<ExpiringMember>[] = [
   },
 ];
 
+const expiringGymIdColumn: ColumnDef<ExpiringMember> = {
+  id: "gymId",
+  accessorKey: "gymId",
+  header: "Gym ID",
+  enableSorting: true,
+  cell: ({ row }) => (
+    <div className="font-mono text-sm text-muted-foreground tabular-nums">
+      {row.original.gymId ?? "—"}
+    </div>
+  ),
+};
+
 const currentDate = new Date();
 const YEAR_OPTIONS = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i);
 
 export default function Page() {
   const [selectedMonth, setSelectedMonth] = React.useState(String(currentDate.getMonth()));
   const [selectedYear, setSelectedYear] = React.useState(String(currentDate.getFullYear()));
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
+  const expiringColumns = React.useMemo<ColumnDef<ExpiringMember>[]>(() => {
+    return [
+      expiringMembersBaseColumns[0],
+      ...(isSuperAdmin ? [expiringGymIdColumn] : []),
+      ...expiringMembersBaseColumns.slice(1),
+    ];
+  }, [isSuperAdmin]);
   const { setSorting } = useExpiringMembersTableActions();
   const sortBy = useAppSelector((s) => s.expiringMembersTable.sortBy);
   const sortOrder = useAppSelector((s) => s.expiringMembersTable.sortOrder);
@@ -131,7 +150,7 @@ export default function Page() {
           </div>:null}
           {hasPermission(PERMISSIONS.EXPIRING_MEMBERS_VIEW) ? (
             <DataTable
-              columns={columns as never}
+              columns={expiringColumns as ColumnDef<unknown>[]}
               data={expiringMembers}
               searchPlaceholder="Search expiring members..."
               showAddButton={false}
@@ -190,7 +209,8 @@ export default function Page() {
                       first.id === "phone" ||
                       first.id === "membershipType" ||
                       first.id === "expirationDate" ||
-                      first.id === "daysRemaining")
+                      first.id === "daysRemaining" ||
+                      first.id === "gymId")
                     ? { id: first.id, desc: !!first.desc }
                     : null
                 );

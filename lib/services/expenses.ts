@@ -38,7 +38,7 @@ export const doGetExpenses = async (params?: {
   limit?: number;
   startDate?: string;
   endDate?: string;
-  sortBy?: 'category' | 'description' | 'vendor' | 'amount' | 'date' | 'status';
+  sortBy?: 'category' | 'description' | 'vendor' | 'amount' | 'date' | 'status' | 'gymId';
   sortOrder?: 'asc' | 'desc';
 }): Promise<{
   expenses: IExpenseData[];

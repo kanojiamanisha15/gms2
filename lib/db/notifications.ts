@@ -15,12 +15,13 @@ export async function deleteNotificationsOlderThan7Days(): Promise<number> {
 export async function insertNotification(
   title: string,
   message: string,
-  type: NotificationType = 'info'
+  type: NotificationType = 'info',
+  gymId?: number | null
 ): Promise<void> {
   try {
     await query(
-      `INSERT INTO notifications (title, message, type) VALUES ($1, $2, $3)`,
-      [title, message, type]
+      `INSERT INTO notifications (title, message, type, gym_id) VALUES ($1, $2, $3, $4)`,
+      [title, message, type, gymId ?? null]
     );
   } catch (err) {
     console.error('Failed to create notification:', err);

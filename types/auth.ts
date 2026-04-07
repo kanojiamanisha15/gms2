@@ -14,6 +14,7 @@ export interface AuthResponse {
       email: string;
       name: string;
       role?: string;
+      gymId?: number;
     };
   };
   error?: string;
@@ -23,6 +24,7 @@ export interface TokenPayload {
   userId: number;
   email: string;
   role?: string;
+  gymId?: number;
 }
 
 export interface User {
@@ -31,6 +33,7 @@ export interface User {
   email: string;
   role?: string;
   permissions?: string[];
+  gymId?: number;
   created_at: string;
   updated_at: string;
 }

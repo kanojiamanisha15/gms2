@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
 import { PERMISSIONS } from '@/lib/constants/permissions';
-import { requirePermission } from '@/lib/services/authorization';
+import { requirePermission, resolveRequestedGymScope, resolveGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { ITrainerData, ITrainerRow } from '@/types';
@@ -13,6 +13,7 @@ const SORT_FIELDS = {
   role: 'role',
   hireDate: 'hire_date',
   status: 'status',
+  gymId: 'gym_id',
 } as const;
 
 function mapTrainerRowToResponse(row: ITrainerRow): ITrainerData {
@@ -24,6 +25,7 @@ function mapTrainerRowToResponse(row: ITrainerRow): ITrainerData {
     role: row.role,
     hireDate: row.hire_date,
     status: row.status,
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -37,6 +39,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
     const sortByRaw = searchParams.get('sortBy') ?? 'hireDate';
     const sortOrderRaw = searchParams.get('sortOrder') ?? 'desc';
     const page = parseInt(searchParams.get('page') ?? '1', 10);
@@ -59,6 +63,11 @@ export async function GET(request: NextRequest) {
       sqlParams.push(`%${search.trim()}%`);
       paramIndex++;
     }
+    if (scope.gymId != null) {
+      conditions.push(`gym_id = $${paramIndex}`);
+      sqlParams.push(scope.gymId);
+      paramIndex++;
+    }
 
     const whereSql = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
     const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, id DESC`;
@@ -72,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     const trainersSql = `
       SELECT id, name, email, phone, role, hire_date, status,
-             created_at, updated_at
+             gym_id, created_at, updated_at
       FROM trainers
       ${whereSql}
       ORDER BY ${orderBySql}
@@ -115,6 +124,7 @@ export async function POST(request: NextRequest) {
       role?: string;
       hireDate?: string;
       status?: string;
+      gymId?: number | null;
     };
 
     const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -126,6 +136,9 @@ export async function POST(request: NextRequest) {
     const hireDateRaw = body.hireDate ?? new Date().toISOString().split('T')[0];
     const hireDate = String(hireDateRaw).trim();
     const status = body.status === 'inactive' ? 'inactive' : 'active';
+    const scope = resolveRequestedGymScope(authz, body.gymId);
+    if (scope.error) return scope.error;
+    const gymId = scope.gymId;
 
     if (!name) {
       return NextResponse.json(
@@ -147,9 +160,9 @@ export async function POST(request: NextRequest) {
     }
 
     const insertSql = `
-      INSERT INTO trainers (name, email, phone, role, hire_date, status)
-      VALUES ($1, $2, $3, $4, $5::date, $6)
-      RETURNING id, name, email, phone, role, hire_date, status,
+      INSERT INTO trainers (name, email, phone, role, hire_date, status, gym_id)
+      VALUES ($1, $2, $3, $4, $5::date, $6, $7)
+      RETURNING id, name, email, phone, role, hire_date, status, gym_id,
                 created_at, updated_at
     `;
     const trainerRow = await queryOne<ITrainerRow>(insertSql, [
@@ -159,6 +172,7 @@ export async function POST(request: NextRequest) {
       role,
       hireDate,
       status,
+      gymId,
     ]);
 
     if (!trainerRow) {

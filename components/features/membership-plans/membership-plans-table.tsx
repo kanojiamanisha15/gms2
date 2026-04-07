@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { ColumnDef, type SortingState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -62,7 +63,19 @@ function ActionsCell({ plan }: { plan: IMembershipPlanData }) {
   );
 }
 
-const columns: ColumnDef<IMembershipPlanData>[] = [
+const gymIdColumn: ColumnDef<IMembershipPlanData> = {
+  id: "gymId",
+  accessorKey: "gymId",
+  header: "Gym ID",
+  enableSorting: true,
+  cell: ({ row }) => (
+    <div className="font-mono text-sm text-muted-foreground tabular-nums">
+      {row.original.gymId ?? "—"}
+    </div>
+  ),
+};
+
+const planDataColumns: ColumnDef<IMembershipPlanData>[] = [
   {
     accessorKey: "name",
     header: "Plan Name",
@@ -115,19 +128,17 @@ const columns: ColumnDef<IMembershipPlanData>[] = [
       );
     },
   },
-  {
-    id: "actions",
-    header: "Actions",
-    cell: ({ row }) => {
-      const plan = row.original;
-      return <ActionsCell plan={plan} />;
-    },
-    enableSorting: false,
-  },
 ];
 
+const planActionsColumn: ColumnDef<IMembershipPlanData> = {
+  id: "actions",
+  header: "Actions",
+  cell: ({ row }) => <ActionsCell plan={row.original} />,
+  enableSorting: false,
+};
+
 export function MembershipPlansTable() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
   const canShowActions =
     hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_UPDATE) ||
     hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_DELETE);
@@ -153,9 +164,14 @@ export function MembershipPlansTable() {
   });
   const plans: IMembershipPlanData[] = data?.plans ?? [];
 
-  const displayColumns: ColumnDef<IMembershipPlanData>[] = canShowActions
-    ? columns
-    : columns.filter((column) => column.id !== "actions");
+  const displayColumns: ColumnDef<IMembershipPlanData>[] = useMemo(() => {
+    const dataColumns: ColumnDef<IMembershipPlanData>[] = [
+      planDataColumns[0],
+      ...(isSuperAdmin ? [gymIdColumn] : []),
+      ...planDataColumns.slice(1),
+    ];
+    return canShowActions ? [...dataColumns, planActionsColumn] : dataColumns;
+  }, [isSuperAdmin, canShowActions]);
 
   return (
     <DataTable
@@ -189,7 +205,8 @@ export function MembershipPlansTable() {
               first.id === "price" ||
               first.id === "duration" ||
               first.id === "features" ||
-              first.id === "status")
+              first.id === "status" ||
+              first.id === "gymId")
             ? { id: first.id, desc: !!first.desc }
             : null
         );

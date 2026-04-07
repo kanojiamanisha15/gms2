@@ -45,11 +45,13 @@ CREATE TABLE "members" (
     "status" TEXT NOT NULL DEFAULT 'active',
     "payment_status" TEXT NOT NULL DEFAULT 'unpaid',
     "payment_amount" DECIMAL(10,2) NOT NULL DEFAULT 0.0,
+    "gym_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "members_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "members_member_id_key" UNIQUE ("member_id")
+    CONSTRAINT "members_member_id_key" UNIQUE ("member_id"),
+    CONSTRAINT "members_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gyms"("gym_id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -60,23 +62,28 @@ CREATE TABLE "membership_plans" (
     "duration_days" TEXT NOT NULL,
     "features" TEXT,
     "status" TEXT NOT NULL DEFAULT 'active',
+    "gym_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "membership_plans_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "membership_plans_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "membership_plans_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gyms"("gym_id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "payments" (
     "id" SERIAL NOT NULL,
     "member_id" INTEGER,
+    "gym_id" INTEGER,
     "amount" DECIMAL(10,2) NOT NULL,
     "payment_date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "payment_method" TEXT,
     "status" TEXT NOT NULL DEFAULT 'completed',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "payments_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "payments_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "payments_member_id_fkey" FOREIGN KEY ("member_id") REFERENCES "members"("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "payments_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gyms"("gym_id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -88,10 +95,12 @@ CREATE TABLE "expenses" (
     "date" TIMESTAMP(3) NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
     "vendor" TEXT,
+    "gym_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "expenses_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "expenses_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "expenses_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gyms"("gym_id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -99,6 +108,7 @@ CREATE TABLE "attendance" (
     "id" SERIAL NOT NULL,
     "member_id" TEXT NOT NULL,
     "member_name" TEXT NOT NULL,
+    "gym_id" INTEGER,
     "check_in_date" TIMESTAMP(3) NOT NULL,
     "check_in_time" TEXT NOT NULL,
     "check_out_date" TIMESTAMP(3),
@@ -108,7 +118,8 @@ CREATE TABLE "attendance" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "attendance_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "attendance_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "attendance_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gyms"("gym_id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -120,10 +131,12 @@ CREATE TABLE "trainers" (
     "role" TEXT NOT NULL,
     "hire_date" TIMESTAMP(3) NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'active',
+    "gym_id" INTEGER,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "trainers_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "trainers_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "trainers_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gyms"("gym_id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
@@ -132,14 +145,21 @@ CREATE TABLE "notifications" (
     "title" TEXT NOT NULL,
     "message" TEXT NOT NULL,
     "type" TEXT NOT NULL,
+    "gym_id" INTEGER,
     "read" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "notifications_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "notifications_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gyms"("gym_id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
--- AddForeignKey
-ALTER TABLE "payments" ADD CONSTRAINT "payments_member_id_fkey" FOREIGN KEY ("member_id") REFERENCES "members"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE INDEX "members_gym_id_idx" ON "members" ("gym_id");
+CREATE INDEX "trainers_gym_id_idx" ON "trainers" ("gym_id");
+CREATE INDEX "membership_plans_gym_id_idx" ON "membership_plans" ("gym_id");
+CREATE INDEX "expenses_gym_id_idx" ON "expenses" ("gym_id");
+CREATE INDEX "payments_gym_id_idx" ON "payments" ("gym_id");
+CREATE INDEX "attendance_gym_id_idx" ON "attendance" ("gym_id");
+CREATE INDEX "notifications_gym_id_idx" ON "notifications" ("gym_id");
 
 -- RBAC: permissions are stored directly per-user in users.permissions (deny by default)
 

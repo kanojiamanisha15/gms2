@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { type SortingState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
@@ -198,8 +199,27 @@ const baseColumns: ColumnDef<IMemberData>[] = [
   },
 ];
 
+const gymIdColumn: ColumnDef<IMemberData> = {
+  id: "gymId",
+  accessorKey: "gymId",
+  header: "Gym ID",
+  enableSorting: true,
+  cell: ({ row }) => (
+    <div className="font-mono text-sm text-muted-foreground tabular-nums">
+      {row.original.gymId ?? "—"}
+    </div>
+  ),
+};
+
+const actionsColumn: ColumnDef<IMemberData> = {
+  id: "actions",
+  header: "Actions",
+  cell: ({ row }) => <ActionsCell member={row.original} />,
+  enableSorting: false,
+};
+
 export function MembersTable() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
   const { setSearchInput, setPage, setLimit, setSorting } = useMembersTableActions();
   const searchInput = useAppSelector((s) => s.membersTable.searchInput);
   const page = useAppSelector((s) => s.membersTable.page);
@@ -223,20 +243,14 @@ export function MembersTable() {
       }),
   });
   const members: IMemberData[] = data?.members ?? [];
-  const columns: ColumnDef<IMemberData>[] = canShowActions
-    ? [
-      ...baseColumns,
-      {
-        id: "actions",
-        header: "Actions",
-        cell: ({ row }) => {
-          const member = row.original;
-          return <ActionsCell member={member} />;
-        },
-        enableSorting: false,
-      },
-    ]
-    : baseColumns;
+  const columns: ColumnDef<IMemberData>[] = useMemo(() => {
+    const dataColumns: ColumnDef<IMemberData>[] = [
+      baseColumns[0],
+      ...(isSuperAdmin ? [gymIdColumn] : []),
+      ...baseColumns.slice(1),
+    ];
+    return canShowActions ? [...dataColumns, actionsColumn] : dataColumns;
+  }, [isSuperAdmin, canShowActions]);
 
   return (
     <DataTable
@@ -275,7 +289,8 @@ export function MembersTable() {
               first.id === "expiryDate" ||
               first.id === "status" ||
               first.id === "paymentStatus" ||
-              first.id === "paymentAmount")
+              first.id === "paymentAmount" ||
+              first.id === "gymId")
             ? { id: first.id, desc: !!first.desc }
             : null
         );

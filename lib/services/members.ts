@@ -46,7 +46,8 @@ export const doGetMembers = async (params?: {
     | 'expiryDate'
     | 'status'
     | 'paymentStatus'
-    | 'paymentAmount';
+    | 'paymentAmount'
+    | 'gymId';
   sortOrder?: 'asc' | 'desc';
 }): Promise<{
   members: IMemberData[];
@@ -96,6 +97,7 @@ export type ExpiringMember = {
   membershipType: string;
   expirationDate: string;
   daysRemaining: number;
+  gymId: number | null;
 };
 
 type ExpiringMembersResponse = {
@@ -113,7 +115,8 @@ export const doGetExpiringMembers = async (params: {
     | "phone"
     | "membershipType"
     | "expirationDate"
-    | "daysRemaining";
+    | "daysRemaining"
+    | "gymId";
   sortOrder?: "asc" | "desc";
 }): Promise<ExpiringMember[]> => {
   const response = await getRequest<ExpiringMembersResponse>(

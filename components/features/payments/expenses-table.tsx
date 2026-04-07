@@ -79,7 +79,7 @@ function ActionsCell({
 }
 
 export function ExpensesTable() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
   const canShowActions =
     hasPermission(PERMISSIONS.EXPENSES_UPDATE) ||
     hasPermission(PERMISSIONS.EXPENSES_DELETE);
@@ -160,6 +160,21 @@ export function ExpensesTable() {
   };
 
   const columns: ColumnDef<IExpenseData>[] = [
+    ...(isSuperAdmin
+      ? [
+          {
+            id: "gymId",
+            accessorKey: "gymId",
+            header: "Gym ID",
+            enableSorting: true,
+            cell: ({ row }) => (
+              <div className="font-mono text-sm text-muted-foreground tabular-nums">
+                {row.original.gymId ?? "—"}
+              </div>
+            ),
+          } satisfies ColumnDef<IExpenseData>,
+        ]
+      : []),
     {
       accessorKey: "category",
       header: "Category",
@@ -310,7 +325,8 @@ export function ExpensesTable() {
                 first.id === "vendor" ||
                 first.id === "amount" ||
                 first.id === "date" ||
-                first.id === "status")
+                first.id === "status" ||
+                first.id === "gymId")
               ? { id: first.id, desc: !!first.desc }
               : null
           );

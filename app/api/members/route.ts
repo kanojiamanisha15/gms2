@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
 import { PERMISSIONS } from '@/lib/constants/permissions';
-import { requirePermission } from '@/lib/services/authorization';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import { generateMemberId } from '@/lib/utils/member-id';
 import { normalizePhoneToIndia } from '@/lib/helpers';
@@ -18,6 +18,7 @@ const SORT_FIELDS = {
   status: 'status',
   paymentStatus: 'payment_status',
   paymentAmount: 'payment_amount',
+  gymId: 'gym_id',
 } as const;
 
 function mapMemberRowToResponse(row: IMemberRow): IMemberData {
@@ -33,6 +34,7 @@ function mapMemberRowToResponse(row: IMemberRow): IMemberData {
     status: row.status,
     paymentStatus: row.payment_status,
     paymentAmount: parseFloat(row.payment_amount ?? '0'),
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -45,7 +47,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
+
     const search = searchParams.get('search');
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
     const sortByRaw = searchParams.get('sortBy') ?? 'joinDate';
     const sortOrderRaw = searchParams.get('sortOrder') ?? 'desc';
     const page = parseInt(searchParams.get('page') ?? '1', 10);
@@ -58,7 +63,9 @@ export async function GET(request: NextRequest) {
     const offset = (pageNum - 1) * limitNum;
 
     const sqlParams: (string | number)[] = [];
+
     const conditions: string[] = [];
+
     let paramIndex = 1;
 
     if (search?.trim()) {
@@ -66,6 +73,11 @@ export async function GET(request: NextRequest) {
         `(name ILIKE $${paramIndex} OR email ILIKE $${paramIndex} OR member_id ILIKE $${paramIndex})`
       );
       sqlParams.push(`%${search.trim()}%`);
+      paramIndex++;
+    }
+    if (scope.gymId != null) {
+      conditions.push(`gym_id = $${paramIndex}`);
+      sqlParams.push(scope.gymId);
       paramIndex++;
     }
 
@@ -81,7 +93,7 @@ export async function GET(request: NextRequest) {
 
     const membersSql = `
       SELECT id, member_id, name, email, phone, membership_type,
-             join_date, expiry_date, status, payment_status, payment_amount,
+             join_date, expiry_date, status, payment_status, payment_amount, gym_id,
              created_at, updated_at
       FROM members
       ${whereSql}
@@ -130,6 +142,9 @@ export async function POST(request: NextRequest) {
     const status = typeof body.status === 'string' ? body.status : '';
     const paymentStatus = typeof body.paymentStatus === 'string' ? body.paymentStatus : '';
     const paymentAmount = Number(body.paymentAmount) ?? 0;
+    const scope = resolveRequestedGymScope(authz, body.gymId);
+    if (scope.error) return scope.error;
+    const gymId = scope.gymId;
 
     if (!name) {
       return NextResponse.json(
@@ -190,11 +205,11 @@ export async function POST(request: NextRequest) {
     const insertSql = `
       INSERT INTO members (
         member_id, name, email, phone, membership_type,
-        join_date, expiry_date, status, payment_status, payment_amount
+        join_date, expiry_date, status, payment_status, payment_amount, gym_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10, $11)
       RETURNING id, member_id, name, email, phone, membership_type,
-                join_date, expiry_date, status, payment_status, payment_amount,
+                join_date, expiry_date, status, payment_status, payment_amount, gym_id,
                 created_at, updated_at
     `;
     const row = await queryOne<IMemberRow>(insertSql, [
@@ -208,6 +223,7 @@ export async function POST(request: NextRequest) {
       status,
       paymentStatus,
       paymentAmount,
+      gymId,
     ]);
 
     if (!row) {

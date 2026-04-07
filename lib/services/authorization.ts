@@ -14,11 +14,12 @@ type UserAuthRow = {
   id: number;
   role: string;
   permissions: string[];
+  gym_id: number | null;
 };
 
 async function getUserAuthRow(userId: number): Promise<UserAuthRow | null> {
   return queryOne<UserAuthRow>(
-    `SELECT id, role, permissions FROM users WHERE id = $1`,
+    `SELECT id, role, permissions, gym_id FROM users WHERE id = $1`,
     [userId]
   );
 }
@@ -38,9 +39,17 @@ export async function requireSession(request: NextRequest): Promise<AuthzResult>
       error: NextResponse.json({ success: false, error: 'User not found' }, { status: 401 }),
     };
   }
+
+  // DB is the source of truth for mutable authz fields like role/gym assignment.
+  const effectivePayload: TokenPayload = {
+    ...payload,
+    role: user.role,
+    gymId: user.gym_id ?? undefined,
+  };
+
   return {
-    payload,
-    userId: user.id,
+    payload: effectivePayload,
+    userId: payload.userId,
     isSuperAdmin: isSuperAdminRole(user.role),
   };
 }
@@ -143,4 +152,67 @@ export async function requireSuperAdmin(request: NextRequest): Promise<AuthzResu
     };
   }
   return session;
+}
+
+export function parseGymIdParam(raw: string | null): number | null {
+  if (raw == null || raw.trim() === '') return null;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : NaN;
+}
+
+export function resolveGymScope(
+  authz: { isSuperAdmin: boolean; payload: TokenPayload },
+  requestedGymId: number | null
+): { gymId: number | null; error?: NextResponse } {
+  if (authz.isSuperAdmin) {
+    return { gymId: requestedGymId };
+  }
+
+  const userGymId = authz.payload.gymId ?? null;
+  if (userGymId == null) {
+    return {
+      gymId: null,
+      error: NextResponse.json(
+        { success: false, error: 'User is not assigned to any gym' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  if (requestedGymId != null && requestedGymId !== userGymId) {
+    return {
+      gymId: null,
+      error: NextResponse.json(
+        { success: false, error: 'Forbidden for requested gym' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { gymId: userGymId };
+}
+
+export function resolveRequestedGymScope(
+  authz: { isSuperAdmin: boolean; payload: TokenPayload },
+  rawGymId: unknown,
+  options?: { allowUndefined?: boolean }
+): { gymId: number | null | undefined; error?: NextResponse } {
+  if (options?.allowUndefined && rawGymId === undefined) {
+    return { gymId: undefined };
+  }
+
+  const requestedGymId = parseGymIdParam(rawGymId == null ? null : String(rawGymId));
+  if (Number.isNaN(requestedGymId)) {
+    return {
+      gymId: undefined,
+      error: NextResponse.json({ success: false, error: 'Invalid gymId' }, { status: 400 }),
+    };
+  }
+
+  const scope = resolveGymScope(authz, requestedGymId);
+  if (scope.error) {
+    return { gymId: undefined, error: scope.error };
+  }
+
+  return { gymId: scope.gymId };
 }

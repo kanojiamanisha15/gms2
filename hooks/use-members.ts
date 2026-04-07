@@ -12,7 +12,7 @@ import type { ICreateMemberData, IUpdateMemberData } from "@/types";
 export function useExpiringMembers(
   month: number,
   year: number,
-  sortBy?: "name" | "email" | "phone" | "membershipType" | "expirationDate" | "daysRemaining",
+  sortBy?: "name" | "email" | "phone" | "membershipType" | "expirationDate" | "daysRemaining" | "gymId",
   sortOrder?: "asc" | "desc"
 ) {
   return useQuery({

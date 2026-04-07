@@ -27,11 +27,19 @@ export function UserPermissionsDialog({
   const queryClient = useQueryClient();
   const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [localPermissions, setLocalPermissions] = useState<Record<string, boolean>>({});
+  const isAdminRole = rowUser.role?.toLowerCase() === "admin";
+
+  const isRestrictedPermission = (permissionKey: string) =>
+    permissionKey.startsWith("users.") || permissionKey.startsWith("gyms.");
+
+  const visiblePermissions = PERMISSION_DEFINITIONS.filter(
+    (permission) => isAdminRole || !isRestrictedPermission(permission.key)
+  );
 
   const openPermissionsDialog = () => {
     const granted = new Set(rowUser.permissions ?? []);
     const next: Record<string, boolean> = {};
-    for (const p of PERMISSION_DEFINITIONS) {
+    for (const p of visiblePermissions) {
       next[p.key] = granted.has(p.key);
     }
     setLocalPermissions(next);
@@ -77,7 +85,7 @@ export function UserPermissionsDialog({
           </DialogHeader>
 
           <div className="space-y-3">
-            {PERMISSION_DEFINITIONS.map((p) => {
+            {visiblePermissions.map((p) => {
               const granted = localPermissions[p.key] ?? false;
               return (
                 <button

@@ -71,7 +71,7 @@ export function useMembersTableActions() {
     setLimit: useCallback((limit: number) => dispatch(setMembersLimit(limit)), [dispatch]),
     setSorting: useCallback(
       (
-        sorting: { id: "memberId" | "name" | "email" | "phone" | "membershipType" | "joinDate" | "expiryDate" | "status" | "paymentStatus" | "paymentAmount"; desc: boolean } | null
+        sorting: { id: "memberId" | "name" | "email" | "phone" | "membershipType" | "joinDate" | "expiryDate" | "status" | "paymentStatus" | "paymentAmount" | "gymId"; desc: boolean } | null
       ) => dispatch(setMembersSorting(sorting)),
       [dispatch]
     ),
@@ -103,7 +103,7 @@ export function useTrainersTableActions() {
     setSorting: useCallback(
       (
         sorting:
-          | { id: "name" | "email" | "phone" | "role" | "hireDate" | "status"; desc: boolean }
+          | { id: "name" | "email" | "phone" | "role" | "hireDate" | "status" | "gymId"; desc: boolean }
           | null
       ) => dispatch(setTrainersSorting(sorting)),
       [dispatch]
@@ -121,7 +121,7 @@ export function useMembershipPlansTableActions() {
     setSorting: useCallback(
       (
         sorting:
-          | { id: "name" | "price" | "duration" | "features" | "status"; desc: boolean }
+          | { id: "name" | "price" | "duration" | "features" | "status" | "gymId"; desc: boolean }
           | null
       ) => dispatch(setMembershipPlansSorting(sorting)),
       [dispatch]
@@ -142,7 +142,7 @@ export function useExpensesTableActions() {
     setSorting: useCallback(
       (
         sorting:
-          | { id: "category" | "description" | "vendor" | "amount" | "date" | "status"; desc: boolean }
+          | { id: "category" | "description" | "vendor" | "amount" | "date" | "status" | "gymId"; desc: boolean }
           | null
       ) => dispatch(setExpensesSorting(sorting)),
       [dispatch]
@@ -179,7 +179,8 @@ export function useExpiringMembersTableActions() {
                 | "phone"
                 | "membershipType"
                 | "expirationDate"
-                | "daysRemaining";
+                | "daysRemaining"
+                | "gymId";
               desc: boolean;
             }
           | null

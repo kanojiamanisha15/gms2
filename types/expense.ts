@@ -8,6 +8,7 @@ export interface ICreateExpenseData {
   date: string;
   status: ExpenseStatus;
   vendor?: string | null;
+  gymId?: number | null;
 }
 
 export interface IUpdateExpenseData {
@@ -17,6 +18,7 @@ export interface IUpdateExpenseData {
   date?: string;
   status?: ExpenseStatus;
   vendor?: string | null;
+  gymId?: number | null;
 }
 
 /** Raw expense row from database (snake_case) */
@@ -28,6 +30,7 @@ export interface IExpenseRow {
   date: string;
   status: string;
   vendor: string | null;
+  gym_id: number | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -40,6 +43,7 @@ export interface IExpenseData {
   date: string;
   status: ExpenseStatus;
   vendor: string | null;
+  gymId: number | null;
   createdAt?: string;
   updatedAt?: string;
 }

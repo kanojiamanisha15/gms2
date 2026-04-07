@@ -7,7 +7,8 @@ export interface ExpiringMembersTableState {
     | "phone"
     | "membershipType"
     | "expirationDate"
-    | "daysRemaining";
+    | "daysRemaining"
+    | "gymId";
   sortOrder: "asc" | "desc";
 }
 
@@ -31,7 +32,8 @@ export const expiringMembersTableSlice = createSlice({
                 | "phone"
                 | "membershipType"
                 | "expirationDate"
-                | "daysRemaining";
+                | "daysRemaining"
+                | "gymId";
               desc: boolean;
             }
           | null;

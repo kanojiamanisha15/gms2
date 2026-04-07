@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/db';
 import { PERMISSIONS } from '@/lib/constants/permissions';
-import { requirePermission } from '@/lib/services/authorization';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -13,6 +13,10 @@ export async function GET(request: NextRequest) {
   if ('error' in authz) return authz.error;
 
   try {
+    const { searchParams } = new URL(request.url);
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
+
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
@@ -44,8 +48,9 @@ export async function GET(request: NextRequest) {
        FROM members
        WHERE payment_status = 'paid'
          AND join_date >= $1::date AND join_date <= $2::date
+         AND ($3::int IS NULL OR gym_id = $3)
        GROUP BY EXTRACT(YEAR FROM join_date), EXTRACT(MONTH FROM join_date)`,
-      [rangeStart, rangeEnd]
+      [rangeStart, rangeEnd, scope.gymId]
     );
     const receivedByMonth = new Map(
       receivedRows.map((r) => [`${r.y}-${r.m}`, parseFloat(r.total)])
@@ -59,8 +64,9 @@ export async function GET(request: NextRequest) {
        FROM members
        WHERE payment_status = 'unpaid'
          AND join_date >= $1::date AND join_date <= $2::date
+         AND ($3::int IS NULL OR gym_id = $3)
        GROUP BY EXTRACT(YEAR FROM join_date), EXTRACT(MONTH FROM join_date)`,
-      [rangeStart, rangeEnd]
+      [rangeStart, rangeEnd, scope.gymId]
     );
     const dueByMonth = new Map(
       dueRows.map((r) => [`${r.y}-${r.m}`, parseFloat(r.total)])

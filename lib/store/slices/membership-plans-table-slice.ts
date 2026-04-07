@@ -4,7 +4,7 @@ export interface MembershipPlansTableState {
   searchInput: string;
   page: number;
   limit: number;
-  sortBy: "name" | "price" | "duration" | "features" | "status";
+  sortBy: "name" | "price" | "duration" | "features" | "status" | "gymId";
   sortOrder: "asc" | "desc";
 }
 
@@ -35,7 +35,7 @@ export const membershipPlansTableSlice = createSlice({
       state,
       action: {
         payload:
-          | { id: "name" | "price" | "duration" | "features" | "status"; desc: boolean }
+          | { id: "name" | "price" | "duration" | "features" | "status" | "gymId"; desc: boolean }
           | null;
       }
     ) {

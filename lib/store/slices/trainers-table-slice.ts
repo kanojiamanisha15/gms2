@@ -4,7 +4,7 @@ export interface TrainersTableState {
   searchInput: string;
   page: number;
   limit: number;
-  sortBy: "name" | "email" | "phone" | "role" | "hireDate" | "status";
+  sortBy: "name" | "email" | "phone" | "role" | "hireDate" | "status" | "gymId";
   sortOrder: "asc" | "desc";
 }
 
@@ -35,7 +35,7 @@ export const trainersTableSlice = createSlice({
       state,
       action: {
         payload:
-          | { id: "name" | "email" | "phone" | "role" | "hireDate" | "status"; desc: boolean }
+          | { id: "name" | "email" | "phone" | "role" | "hireDate" | "status" | "gymId"; desc: boolean }
           | null;
       }
     ) {

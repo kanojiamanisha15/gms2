@@ -5,6 +5,7 @@ export interface ICreateMembershipPlanData {
   duration: string;
   features?: string | null;
   status?: "active" | "inactive";
+  gymId?: number | null;
 }
 
 export interface IUpdateMembershipPlanData {
@@ -13,6 +14,7 @@ export interface IUpdateMembershipPlanData {
   duration?: string;
   features?: string | null;
   status?: "active" | "inactive";
+  gymId?: number | null;
 }
 
 export interface IMembershipPlanRow {
@@ -22,6 +24,7 @@ export interface IMembershipPlanRow {
   duration_days: string;
   features: string | null;
   status: string;
+  gym_id: number | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -33,6 +36,7 @@ export interface IMembershipPlanData {
   duration: string;
   features: string | null;
   status: string;
+  gymId: number | null;
   createdAt?: string;
   updatedAt?: string;
 }

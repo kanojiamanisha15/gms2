@@ -16,8 +16,9 @@ export async function GET(request: NextRequest) {
     name: string;
     role?: string;
     created_at: Date;
+    gymId?: number;
   }>(
-    'SELECT id, email, name, role, created_at FROM users WHERE id = $1',
+    'SELECT id, email, name, role, gym_id, created_at FROM users WHERE id = $1',
     [session.userId]
   );
 
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        gymId: user.gymId,
         permissions,
         created_at:
           user.created_at instanceof Date

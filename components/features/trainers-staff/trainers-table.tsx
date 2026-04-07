@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { ColumnDef, type SortingState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
@@ -58,7 +59,19 @@ function ActionsCell({ trainer }: { trainer: ITrainerData }) {
   );
 }
 
-const columns: ColumnDef<ITrainerData>[] = [
+const gymIdColumn: ColumnDef<ITrainerData> = {
+  id: "gymId",
+  accessorKey: "gymId",
+  header: "Gym ID",
+  enableSorting: true,
+  cell: ({ row }) => (
+    <div className="font-mono text-sm text-muted-foreground tabular-nums">
+      {row.original.gymId ?? "—"}
+    </div>
+  ),
+};
+
+const trainerDataColumns: ColumnDef<ITrainerData>[] = [
   {
     accessorKey: "name",
     header: "Name",
@@ -120,19 +133,17 @@ const columns: ColumnDef<ITrainerData>[] = [
       );
     },
   },
-  {
-    id: "actions",
-    header: "Actions",
-    cell: ({ row }) => {
-      const trainer = row.original;
-      return <ActionsCell trainer={trainer} />;
-    },
-    enableSorting: false,
-  },
 ];
 
+const trainerActionsColumn: ColumnDef<ITrainerData> = {
+  id: "actions",
+  header: "Actions",
+  cell: ({ row }) => <ActionsCell trainer={row.original} />,
+  enableSorting: false,
+};
+
 export function TrainersTable() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
   const canShowActions =
     hasPermission(PERMISSIONS.TRAINERS_UPDATE) ||
     hasPermission(PERMISSIONS.TRAINERS_DELETE);
@@ -159,9 +170,14 @@ export function TrainersTable() {
   });
   const trainers: ITrainerData[] = data?.trainers ?? [];
 
-  const displayColumns: ColumnDef<ITrainerData>[] = canShowActions
-    ? columns
-    : columns.filter((column) => column.id !== "actions");
+  const displayColumns: ColumnDef<ITrainerData>[] = useMemo(() => {
+    const dataColumns: ColumnDef<ITrainerData>[] = [
+      trainerDataColumns[0],
+      ...(isSuperAdmin ? [gymIdColumn] : []),
+      ...trainerDataColumns.slice(1),
+    ];
+    return canShowActions ? [...dataColumns, trainerActionsColumn] : dataColumns;
+  }, [isSuperAdmin, canShowActions]);
 
   return (
     <DataTable
@@ -196,7 +212,8 @@ export function TrainersTable() {
               first.id === "phone" ||
               first.id === "role" ||
               first.id === "hireDate" ||
-              first.id === "status")
+              first.id === "status" ||
+              first.id === "gymId")
             ? { id: first.id, desc: !!first.desc }
             : null
         );

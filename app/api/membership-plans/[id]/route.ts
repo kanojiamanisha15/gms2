@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
 import { PERMISSIONS } from '@/lib/constants/permissions';
-import { requirePermission } from '@/lib/services/authorization';
+import { requirePermission, resolveRequestedGymScope, resolveGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import type { IUpdateMembershipPlanData, IMembershipPlanData, IMembershipPlanRow } from '@/types';
 
@@ -13,6 +13,7 @@ function mapPlanRowToResponse(row: IMembershipPlanRow): IMembershipPlanData {
     duration: row.duration_days,
     features: row.features,
     status: row.status,
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -27,6 +28,8 @@ export async function GET(
   if ('error' in authz) return authz.error;
 
   try {
+    const scope = resolveGymScope(authz, null);
+    if (scope.error) return scope.error;
     const { id } = await params;
     const planId = parseInt(id, 10);
 
@@ -39,10 +42,11 @@ export async function GET(
 
     const row = await queryOne<IMembershipPlanRow>(
       `SELECT id, name, price, duration_days, features, status,
-              created_at, updated_at
+              gym_id, created_at, updated_at
        FROM membership_plans
-       WHERE id = $1`,
-      [planId]
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [planId, scope.gymId]
     );
 
     if (!row) {
@@ -74,6 +78,8 @@ export async function PUT(
   if ('error' in authz) return authz.error;
 
   try {
+    const baseScope = resolveGymScope(authz, null);
+    if (baseScope.error) return baseScope.error;
     const { id } = await params;
     const planId = parseInt(id, 10);
 
@@ -93,6 +99,9 @@ export async function PUT(
       ? (body.features != null && String(body.features).trim() ? String(body.features).trim() : null)
       : undefined;
     const status = body.status;
+    const writeScope = resolveRequestedGymScope(authz, body.gymId, { allowUndefined: true });
+    if (writeScope.error) return writeScope.error;
+    const gymId = writeScope.gymId;
 
     const validStatuses = ['active', 'inactive'];
     if (status != null && !validStatuses.includes(status)) {
@@ -109,10 +118,11 @@ export async function PUT(
     }
 
     const existing = await queryOne<IMembershipPlanRow>(
-      `SELECT id, name, price, duration_days, features, status
+      `SELECT id, name, price, duration_days, features, status, gym_id
        FROM membership_plans
-       WHERE id = $1`,
-      [planId]
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [planId, baseScope.gymId]
     );
 
     if (!existing) {
@@ -151,6 +161,11 @@ export async function PUT(
       values.push(status);
       paramIndex++;
     }
+    if (gymId !== undefined) {
+      updates.push(`gym_id = $${paramIndex}`);
+      values.push(gymId);
+      paramIndex++;
+    }
 
     if (updates.length === 0) {
       return NextResponse.json({
@@ -167,7 +182,7 @@ export async function PUT(
       SET ${updates.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING id, name, price, duration_days, features, status,
-                created_at, updated_at
+                gym_id, created_at, updated_at
     `;
     const row = await queryOne<IMembershipPlanRow>(updateSql, values);
 
@@ -206,6 +221,8 @@ export async function DELETE(
   if ('error' in authz) return authz.error;
 
   try {
+    const scope = resolveGymScope(authz, null);
+    if (scope.error) return scope.error;
     const { id } = await params;
     const planId = parseInt(id, 10);
 
@@ -217,8 +234,10 @@ export async function DELETE(
     }
 
     const existing = await queryOne<IMembershipPlanRow>(
-      `SELECT id, name FROM membership_plans WHERE id = $1`,
-      [planId]
+      `SELECT id, name FROM membership_plans
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [planId, scope.gymId]
     );
 
     if (!existing) {
@@ -228,7 +247,12 @@ export async function DELETE(
       );
     }
 
-    await query(`DELETE FROM membership_plans WHERE id = $1`, [planId]);
+    await query(
+      `DELETE FROM membership_plans
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [planId, scope.gymId]
+    );
 
     await insertNotification(
       'Membership Plan Deleted',

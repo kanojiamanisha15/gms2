@@ -9,6 +9,7 @@ export interface ICreateMemberData {
   status: "active" | "inactive" | "expired";
   paymentStatus: "paid" | "unpaid";
   paymentAmount: number;
+  gymId?: number | null;
 }
 
 export interface IUpdateMemberData {
@@ -21,6 +22,7 @@ export interface IUpdateMemberData {
   status?: "active" | "inactive" | "expired";
   paymentStatus?: "paid" | "unpaid";
   paymentAmount?: number;
+  gymId?: number | null;
 }
 
 /** Raw member row from database (snake_case) */
@@ -36,6 +38,7 @@ export interface IMemberRow {
   status: string;
   payment_status: string;
   payment_amount: string;
+  gym_id: number | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -52,6 +55,7 @@ export interface IMemberData {
   status: string;
   paymentStatus: string;
   paymentAmount: number;
+  gymId: number | null;
   createdAt?: string;
   updatedAt?: string;
 }

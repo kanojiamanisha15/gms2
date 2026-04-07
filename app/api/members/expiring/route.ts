@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/db';
 import { PERMISSIONS } from '@/lib/constants/permissions';
-import { requirePermission } from '@/lib/services/authorization';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 
 export type ExpiringMemberRow = {
   member_id: string;
@@ -10,6 +10,7 @@ export type ExpiringMemberRow = {
   phone: string | null;
   membership_type: string;
   expiry_date: string;
+  gym_id: number | null;
 };
 
 const SORT_FIELDS = {
@@ -19,6 +20,7 @@ const SORT_FIELDS = {
   membershipType: "membership_type",
   expirationDate: "expiry_date",
   daysRemaining: "expiry_date",
+  gymId: "gym_id",
 } as const;
 
 /** GET /api/members/expiring - Get members whose expiry_date is in the given month/year. Query: month (0-11), year */
@@ -30,6 +32,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const monthParam = searchParams.get('month');
     const yearParam = searchParams.get('year');
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
     const sortByRaw = searchParams.get('sortBy') ?? 'expirationDate';
     const sortOrderRaw = searchParams.get('sortOrder') ?? 'asc';
 
@@ -57,14 +61,15 @@ export async function GET(request: NextRequest) {
     const sqlMonth = month + 1;
 
     const rows = await query<ExpiringMemberRow>(
-      `SELECT member_id, name, email, phone, membership_type, expiry_date
+      `SELECT member_id, name, email, phone, membership_type, expiry_date, gym_id
        FROM members
        WHERE status = 'active'
          AND expiry_date IS NOT NULL
          AND EXTRACT(MONTH FROM expiry_date) = $1
          AND EXTRACT(YEAR FROM expiry_date) = $2
+         AND ($3::int IS NULL OR gym_id = $3)
        ORDER BY ${orderBySql}`,
-      [sqlMonth, year]
+      [sqlMonth, year, scope.gymId]
     );
 
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -88,6 +93,7 @@ export async function GET(request: NextRequest) {
         membershipType: row.membership_type,
         expirationDate: expiryDateStr,
         daysRemaining,
+        gymId: row.gym_id,
       };
     });
 

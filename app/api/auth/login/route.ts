@@ -26,8 +26,9 @@ export async function POST(request: NextRequest) {
       password: string;
       name: string;
       role?: string;
+      gym_id?: number;
     }>(
-      'SELECT id, email, password, name, role FROM users WHERE email = $1',
+      'SELECT id, email, password, name, role, gym_id  FROM users WHERE email = $1',
       [email.toLowerCase().trim()]
     );
 
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
       role: user.role,
+      gymId: user.gym_id,
     });
 
     // Create response with token in JSON
@@ -65,6 +67,7 @@ export async function POST(request: NextRequest) {
           email: user.email,
           name: user.name,
           role: user.role,
+          gymId: user.gym_id,
         },
       },
     });
