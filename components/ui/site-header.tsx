@@ -19,6 +19,7 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from "@/hooks/use-notifications";
+import { useCurrentUser } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -28,6 +29,7 @@ import { ErrorMessage } from "@/components/ui/error-message";
 dayjs.extend(relativeTime);
 
 export function SiteHeader() {
+  const { data: currentUser } = useCurrentUser();
   const {
     data: notifications = [],
     isLoading,
@@ -40,6 +42,8 @@ export function SiteHeader() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const recentNotifications = notifications.slice(0, 3);
+  const gymName = currentUser?.gymName?.trim();
+  const showGymWelcome = Boolean(currentUser?.gymId && gymName);
 
   const handleNotificationClick = (id: string, read: boolean) => {
     if (!read && hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_AS_READ)) {
@@ -61,6 +65,14 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
+        {showGymWelcome ? (
+          <div className="hidden md:flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1">
+            <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
+            <p className="text-xs text-muted-foreground">
+              Welcome to <span className="font-semibold text-foreground">{gymName}</span>
+            </p>
+          </div>
+        ) : null}
         <div className="ml-auto flex items-center gap-2">
           <DropdownMenu>
             {hasPermission(PERMISSIONS.NOTIFICATIONS_READ) ? <DropdownMenuTrigger asChild>

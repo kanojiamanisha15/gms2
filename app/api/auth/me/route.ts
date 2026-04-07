@@ -16,9 +16,20 @@ export async function GET(request: NextRequest) {
     name: string;
     role?: string;
     created_at: Date;
-    gymId?: number;
+    gymId?: number | null;
+    gymName?: string | null;
   }>(
-    'SELECT id, email, name, role, gym_id, created_at FROM users WHERE id = $1',
+    `SELECT
+      u.id,
+      u.email,
+      u.name,
+      u.role,
+      u.gym_id AS "gymId",
+      g.gym_name AS "gymName",
+      u.created_at
+    FROM users u
+    LEFT JOIN gyms g ON g.gym_id = u.gym_id
+    WHERE u.id = $1`,
     [session.userId]
   );
 
@@ -41,6 +52,7 @@ export async function GET(request: NextRequest) {
         name: user.name,
         role: user.role,
         gymId: user.gymId,
+        gymName: user.gymName,
         permissions,
         created_at:
           user.created_at instanceof Date

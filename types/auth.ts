@@ -34,6 +34,7 @@ export interface User {
   role?: string;
   permissions?: string[];
   gymId?: number;
+  gymName?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -40,6 +40,8 @@ export async function getCurrentUser(): Promise<{
       email: string;
       name: string;
       role?: string;
+      gymId?: number | null;
+      gymName?: string | null;
       permissions?: string[];
       created_at: string;
     };
@@ -54,6 +56,8 @@ export async function getCurrentUser(): Promise<{
         email: string;
         name: string;
         role?: string;
+        gymId?: number | null;
+        gymName?: string | null;
         permissions?: string[];
         created_at: string;
       };
