@@ -42,13 +42,13 @@ export function SiteHeader() {
   const recentNotifications = notifications.slice(0, 3);
 
   const handleNotificationClick = (id: string, read: boolean) => {
-    if (!read) {
+    if (!read && hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_AS_READ)) {
       markReadMutation.mutate(id);
     }
-  };  
+  };
 
   const handleMarkAllRead = () => {
-    if (unreadCount > 0) {
+    if (unreadCount > 0 && hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_ALL_AS_READ)) {
       markAllReadMutation.mutate();
     }
   };
@@ -81,7 +81,7 @@ export function SiteHeader() {
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel className="flex items-center justify-between">
                 <span>Notifications</span>
-                {unreadCount > 0 && (
+                {hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_ALL_AS_READ) && unreadCount > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
