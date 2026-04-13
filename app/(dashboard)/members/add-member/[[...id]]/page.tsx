@@ -123,7 +123,7 @@ export default function AddMemberPage() {
   const onSubmit = (data: MemberFormData) => {
     const payload = {
       name: data.name.trim(),
-      email: data.email?.trim() || null,
+      email: data.email.trim(),
       phone: data.phone?.trim(),
       membershipType: data.membershipType,
       joinDate: data.joinDate,
@@ -242,6 +242,7 @@ export default function AddMemberPage() {
                       </FormItem>
                     )}
                     rules={{
+                      required: "Email is required",
                       pattern: {
                         value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                         message: "Invalid email address",

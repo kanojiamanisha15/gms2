@@ -31,6 +31,30 @@ type MemberByIdResponse = {
   error?: string;
 };
 
+export type ImportMemberRow = {
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  membershipType: string;
+  joinDate: string;
+  expiryDate: string | null;
+  status: "active" | "inactive" | "expired";
+  paymentStatus: "paid" | "unpaid";
+  paymentAmount: number;
+  gymId?: number | null;
+};
+
+export type ImportMembersResponse = {
+  success: boolean;
+  data?: {
+    totalRows: number;
+    importedCount: number;
+    failedCount: number;
+    errors: Array<{ rowNumber: number; message: string }>;
+  };
+  error?: string;
+};
+
 // GET /api/members - Get all members with pagination
 export const doGetMembers = async (params?: {
   search?: string;
@@ -162,7 +186,7 @@ export const doCreateMember = async (
     API_ENDPOINTS.MEMBERS,
     {
       name: memberData.name.trim(),
-      email: memberData.email?.trim() || null,
+      email: memberData.email.trim(),
       phone: memberData.phone?.trim() || null,
       membershipType: memberData.membershipType,
       joinDate: memberData.joinDate,
@@ -193,6 +217,17 @@ export const doDeleteMember = async (
 ): Promise<{ success: boolean; error?: string }> => {
   const response = await deleteRequest<{ success: boolean; error?: string }>(
     `${API_ENDPOINTS.MEMBERS}/${memberId}`
+  );
+  return response;
+};
+
+// POST /api/members/import - Bulk import members
+export const doImportMembers = async (
+  rows: ImportMemberRow[]
+): Promise<ImportMembersResponse> => {
+  const response = await postRequest<ImportMembersResponse>(
+    API_ENDPOINTS.MEMBERS_IMPORT,
+    { rows }
   );
   return response;
 };

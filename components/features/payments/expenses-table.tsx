@@ -18,6 +18,7 @@ import { useAppSelector, useExpensesTableActions } from "@/lib/store";
 import type { IExpenseData } from "@/types";
 import { usePermissions } from "@/hooks/use-permissions";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ExpensesImportExportActions } from "@/components/features/payments/expenses-import-export-actions";
 
 // Lazy load the expense form modal (only loads when opened)
 const ExpenseFormModal = dynamic(() => import("./expense-form-modal").then(mod => ({ default: mod.ExpenseFormModal })), {
@@ -259,32 +260,43 @@ export function ExpensesTable() {
     ? columns
     : columns.filter((column) => column.id !== "actions");
 
-  const headerAction = (
-    <div className="flex flex-wrap items-start sm:items-center gap-3">
-      <div className="flex items-center gap-2">
-        <Label htmlFor="start-date" className="text-xs whitespace-nowrap">
-          Start Date
-        </Label>
-        <Input
-          id="start-date"
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="w-[140px]"
-        />
+  const header = (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Expenses</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {`${data?.total ?? 0} expense${(data?.total ?? 0) !== 1 ? "s" : ""} recorded`}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="start-date" className="text-xs whitespace-nowrap">
+              Start Date
+            </Label>
+            <Input
+              id="start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-[140px]"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="end-date" className="text-xs whitespace-nowrap">
+              End Date
+            </Label>
+            <Input
+              id="end-date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-[140px]"
+            />
+          </div>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Label htmlFor="end-date" className="text-xs whitespace-nowrap">
-          End Date
-        </Label>
-        <Input
-          id="end-date"
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="w-[140px]"
-        />
-      </div>
+      <ExpensesImportExportActions />
     </div>
   );
 
@@ -298,9 +310,7 @@ export function ExpensesTable() {
         showAddButton={hasPermission(PERMISSIONS.EXPENSES_ADD)}
         entityName="expense"
         onAddClick={handleAdd}
-        headerTitle="Expenses"
-        headerDescription={`${data?.total ?? 0} expense${(data?.total ?? 0) !== 1 ? "s" : ""} recorded`}
-        headerAction={headerAction}
+        header={header}
         serverSideSearch
         searchValue={searchInput}
         onSearchChange={setSearchInput}

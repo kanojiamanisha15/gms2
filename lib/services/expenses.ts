@@ -31,6 +31,16 @@ type ExpenseByIdResponse = {
   error?: string;
 };
 
+export type ImportExpenseRow = {
+  category: string;
+  description?: string | null;
+  vendor?: string | null;
+  amount: number;
+  date: string;
+  status: "paid" | "pending" | "overdue";
+  gymId?: number | null;
+};
+
 // GET /api/expenses - Get expenses with pagination, search, date range
 export const doGetExpenses = async (params?: {
   search?: string;
@@ -139,4 +149,19 @@ export const doDeleteExpense = async (
     `${API_ENDPOINTS.EXPENSES}/${expenseId}`
   );
   return response;
+};
+
+export const doImportExpenses = async (
+  rows: ImportExpenseRow[]
+): Promise<{
+  success: boolean;
+  data?: {
+    totalRows: number;
+    importedCount: number;
+    failedCount: number;
+    errors: Array<{ rowNumber: number; message: string }>;
+  };
+  error?: string;
+}> => {
+  return postRequest(API_ENDPOINTS.EXPENSES_IMPORT, { rows });
 };

@@ -1,7 +1,7 @@
 /** Member shape used across the app (table, forms, etc.) */
 export interface ICreateMemberData {
   name: string;
-  email?: string | null;
+  email: string;
   phone?: string | null;
   membershipType: string;
   joinDate: string;

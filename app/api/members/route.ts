@@ -21,6 +21,8 @@ const SORT_FIELDS = {
   gymId: 'gym_id',
 } as const;
 
+const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+
 function mapMemberRowToResponse(row: IMemberRow): IMemberData {
   return {
     id: row.id,
@@ -164,6 +166,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const email = body.email != null ? String(body.email).trim() : '';
+    if (!email) {
+      return NextResponse.json(
+        { success: false, error: 'Email is required' },
+        { status: 400 }
+      );
+    }
+    if (!EMAIL_REGEX.test(email)) {
+      return NextResponse.json(
+        { success: false, error: 'Email is invalid' },
+        { status: 400 }
+      );
+    }
     if (!joinDate) {
       return NextResponse.json(
         { success: false, error: 'Join date is required' },
@@ -190,8 +205,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const email = body.email != null ? String(body.email).trim() || null : null;
 
     // Next sequential number for same join_date month/year
     const countRows = await query<{ count: string }>(
