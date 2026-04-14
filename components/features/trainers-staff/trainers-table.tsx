@@ -144,6 +144,7 @@ const trainerActionsColumn: ColumnDef<ITrainerData> = {
 
 export function TrainersTable() {
   const { hasPermission, isSuperAdmin } = usePermissions();
+  const canReadTrainers = hasPermission(PERMISSIONS.TRAINERS_READ);
   const canShowActions =
     hasPermission(PERMISSIONS.TRAINERS_UPDATE) ||
     hasPermission(PERMISSIONS.TRAINERS_DELETE);
@@ -167,6 +168,7 @@ export function TrainersTable() {
         sortBy,
         sortOrder,
       }),
+    enabled: canReadTrainers,
   });
   const trainers: ITrainerData[] = data?.trainers ?? [];
 

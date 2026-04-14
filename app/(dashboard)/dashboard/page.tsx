@@ -135,7 +135,8 @@ export default function Page() {
     Number(selectedMonth),
     Number(selectedYear),
     sortBy,
-    sortOrder
+    sortOrder,
+    hasPermission(PERMISSIONS.EXPIRING_MEMBERS_VIEW)
   );
 
   const monthYearLabel = `${MONTH_NAMES[Number(selectedMonth)]} ${selectedYear}`;

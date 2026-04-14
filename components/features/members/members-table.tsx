@@ -220,6 +220,7 @@ const actionsColumn: ColumnDef<IMemberData> = {
 
 export function MembersTable() {
   const { hasPermission, isSuperAdmin } = usePermissions();
+  const canReadMembers = hasPermission(PERMISSIONS.MEMBERS_READ);
   const { setSearchInput, setPage, setLimit, setSorting } = useMembersTableActions();
   const searchInput = useAppSelector((s) => s.membersTable.searchInput);
   const page = useAppSelector((s) => s.membersTable.page);
@@ -241,6 +242,7 @@ export function MembersTable() {
         sortBy,
         sortOrder,
       }),
+    enabled: canReadMembers,
   });
   const members: IMemberData[] = data?.members ?? [];
   const columns: ColumnDef<IMemberData>[] = useMemo(() => {

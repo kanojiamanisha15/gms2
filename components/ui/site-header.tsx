@@ -30,13 +30,14 @@ dayjs.extend(relativeTime);
 
 export function SiteHeader() {
   const { data: currentUser } = useCurrentUser();
+  const { hasPermission } = usePermissions();
+  const canReadNotifications = hasPermission(PERMISSIONS.NOTIFICATIONS_READ);
   const {
     data: notifications = [],
     isLoading,
     isError,
     error: notificationsError,
-  } = useNotifications();
-  const { hasPermission } = usePermissions();
+  } = useNotifications(canReadNotifications);
   const markReadMutation = useMarkNotificationRead();
   const markAllReadMutation = useMarkAllNotificationsRead();
 
@@ -75,7 +76,7 @@ export function SiteHeader() {
         ) : null}
         <div className="ml-auto flex items-center gap-2">
           <DropdownMenu>
-            {hasPermission(PERMISSIONS.NOTIFICATIONS_READ) ? <DropdownMenuTrigger asChild>
+            {canReadNotifications ? <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"

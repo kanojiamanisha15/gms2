@@ -139,6 +139,7 @@ const planActionsColumn: ColumnDef<IMembershipPlanData> = {
 
 export function MembershipPlansTable() {
   const { hasPermission, isSuperAdmin } = usePermissions();
+  const canReadMembershipPlans = hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_READ);
   const canShowActions =
     hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_UPDATE) ||
     hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_DELETE);
@@ -161,6 +162,7 @@ export function MembershipPlansTable() {
         sortBy,
         sortOrder,
       }),
+    enabled: canReadMembershipPlans,
   });
   const plans: IMembershipPlanData[] = data?.plans ?? [];
 

@@ -81,6 +81,7 @@ function ActionsCell({
 
 export function ExpensesTable() {
   const { hasPermission, isSuperAdmin } = usePermissions();
+  const canReadExpenses = hasPermission(PERMISSIONS.EXPENSES_READ);
   const canShowActions =
     hasPermission(PERMISSIONS.EXPENSES_UPDATE) ||
     hasPermission(PERMISSIONS.EXPENSES_DELETE);
@@ -117,6 +118,7 @@ export function ExpensesTable() {
         sortBy,
         sortOrder,
       }),
+    enabled: canReadExpenses,
   });
 
   const expenses: IExpenseData[] = data?.expenses ?? [];

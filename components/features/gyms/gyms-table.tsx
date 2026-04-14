@@ -101,6 +101,7 @@ export function GymsTable() {
   const [editingGymId, setEditingGymId] = useState<string | null>(null);
 
   const { hasPermission } = usePermissions();
+  const canReadGyms = hasPermission(PERMISSIONS.GYMS_READ);
   const { setSearchInput, setPage, setLimit, setSorting } = useGymsTableActions();
   const searchInput = useAppSelector((s) => s.gymsTable.searchInput);
   const page = useAppSelector((s) => s.gymsTable.page);
@@ -123,6 +124,7 @@ export function GymsTable() {
         sortBy,
         sortOrder,
       }),
+    enabled: canReadGyms,
   });
   const gyms: IGymData[] = data?.gyms ?? [];
   const columns: ColumnDef<IGymData>[] = canShowActions

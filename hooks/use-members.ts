@@ -13,12 +13,13 @@ export function useExpiringMembers(
   month: number,
   year: number,
   sortBy?: "name" | "email" | "phone" | "membershipType" | "expirationDate" | "daysRemaining" | "gymId",
-  sortOrder?: "asc" | "desc"
+  sortOrder?: "asc" | "desc",
+  enabled = true
 ) {
   return useQuery({
     queryKey: ["members", "expiring", month, year, sortBy, sortOrder],
     queryFn: () => doGetExpiringMembers({ month, year, sortBy, sortOrder }),
-    enabled: month >= 0 && month <= 11 && year >= 1900 && year <= 2100,
+    enabled: enabled && month >= 0 && month <= 11 && year >= 1900 && year <= 2100,
   });
 }
 

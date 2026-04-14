@@ -150,6 +150,7 @@ const baseColumns: ColumnDef<AppUserRow>[] = [
 
 export function UsersTable() {
   const { currentUser, hasPermission } = usePermissions();
+  const canReadUsers = hasPermission(PERMISSIONS.USERS_READ);
   const { setSorting } = useUsersTableActions();
   const sortBy = useAppSelector((s) => s.usersTable.sortBy);
   const sortOrder = useAppSelector((s) => s.usersTable.sortOrder);
@@ -162,6 +163,7 @@ export function UsersTable() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["adminUsers", sortBy, sortOrder],
     queryFn: () => doGetUsers({ sortBy, sortOrder }),
+    enabled: canReadUsers,
   });
 
   const users = data ?? [];
