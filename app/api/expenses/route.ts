@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import type { ICreateExpenseData, IExpenseData, IExpenseRow } from '@/types';
+
+const SORT_FIELDS = {
+  category: 'category',
+  description: 'description',
+  vendor: 'vendor',
+  amount: 'amount',
+  date: 'date',
+  status: 'status',
+  gymId: 'gym_id',
+} as const;
 
 function mapExpenseRowToResponse(row: IExpenseRow): IExpenseData {
   return {
@@ -13,6 +24,7 @@ function mapExpenseRowToResponse(row: IExpenseRow): IExpenseData {
     date: row.date,
     status: row.status as IExpenseData['status'],
     vendor: row.vendor,
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -20,16 +32,22 @@ function mapExpenseRowToResponse(row: IExpenseRow): IExpenseData {
 
 /** GET /api/expenses - Return paginated list of expenses (requires auth). Query: page, limit, search, startDate, endDate */
 export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.EXPENSES_READ);
+  if ('error' in authz) return authz.error;
 
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const sortByRaw = searchParams.get('sortBy') ?? 'date';
+    const sortOrderRaw = searchParams.get('sortOrder') ?? 'desc';
     const page = parseInt(searchParams.get('page') ?? '1', 10);
     const limit = parseInt(searchParams.get('limit') ?? '10', 10);
+    const sortBy = (sortByRaw in SORT_FIELDS ? sortByRaw : 'date') as keyof typeof SORT_FIELDS;
+    const sortOrder = sortOrderRaw.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     const pageNum = Math.max(1, page);
     const limitNum = Math.min(Math.max(1, limit), 100);
@@ -56,8 +74,14 @@ export async function GET(request: NextRequest) {
       sqlParams.push(endDate.trim());
       paramIndex++;
     }
+    if (scope.gymId != null) {
+      conditions.push(`gym_id = $${paramIndex}`);
+      sqlParams.push(scope.gymId);
+      paramIndex++;
+    }
 
     const whereSql = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
+    const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, id DESC`;
 
     const countRows = await query<{ total: string }>(
       `SELECT COUNT(*) as total FROM expenses${whereSql}`,
@@ -68,10 +92,10 @@ export async function GET(request: NextRequest) {
 
     const expensesSql = `
       SELECT id, category, description, amount, date, status, vendor,
-             created_at, updated_at
+             gym_id, created_at, updated_at
       FROM expenses
       ${whereSql}
-      ORDER BY date DESC, created_at DESC
+      ORDER BY ${orderBySql}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     const expenseRows = await query<IExpenseRow>(expensesSql, [...sqlParams, limitNum, offset]);
@@ -100,8 +124,8 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/expenses - Create a new expense (requires auth). */
 export async function POST(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.EXPENSES_ADD);
+  if ('error' in authz) return authz.error;
 
   try {
     const body = (await request.json()) as ICreateExpenseData;
@@ -112,6 +136,9 @@ export async function POST(request: NextRequest) {
     const date = typeof body.date === 'string' ? body.date.trim() : '';
     const status = typeof body.status === 'string' ? body.status : 'pending';
     const vendor = body.vendor != null ? (String(body.vendor).trim() || null) : null;
+    const scope = resolveRequestedGymScope(authz, body.gymId);
+    if (scope.error) return scope.error;
+    const gymId = scope.gymId;
 
     if (!category) {
       return NextResponse.json(
@@ -140,9 +167,9 @@ export async function POST(request: NextRequest) {
     }
 
     const insertSql = `
-      INSERT INTO expenses (category, description, amount, date, status, vendor)
-      VALUES ($1, $2, $3, $4::date, $5, $6)
-      RETURNING id, category, description, amount, date, status, vendor,
+      INSERT INTO expenses (category, description, amount, date, status, vendor, gym_id)
+      VALUES ($1, $2, $3, $4::date, $5, $6, $7)
+      RETURNING id, category, description, amount, date, status, vendor, gym_id,
                 created_at, updated_at
     `;
     const row = await queryOne<IExpenseRow>(insertSql, [
@@ -152,6 +179,7 @@ export async function POST(request: NextRequest) {
       date,
       status,
       vendor,
+      gymId,
     ]);
 
     if (!row) {

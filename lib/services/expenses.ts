@@ -31,6 +31,16 @@ type ExpenseByIdResponse = {
   error?: string;
 };
 
+export type ImportExpenseRow = {
+  category: string;
+  description?: string | null;
+  vendor?: string | null;
+  amount: number;
+  date: string;
+  status: "paid" | "pending" | "overdue";
+  gymId?: number | null;
+};
+
 // GET /api/expenses - Get expenses with pagination, search, date range
 export const doGetExpenses = async (params?: {
   search?: string;
@@ -38,6 +48,8 @@ export const doGetExpenses = async (params?: {
   limit?: number;
   startDate?: string;
   endDate?: string;
+  sortBy?: 'category' | 'description' | 'vendor' | 'amount' | 'date' | 'status' | 'gymId';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   expenses: IExpenseData[];
   page: number;
@@ -57,6 +69,8 @@ export const doGetExpenses = async (params?: {
   if (params?.search?.trim()) queryParams.search = params.search.trim();
   if (params?.startDate?.trim()) queryParams.startDate = params.startDate.trim();
   if (params?.endDate?.trim()) queryParams.endDate = params.endDate.trim();
+  if (params?.sortBy) queryParams.sortBy = params.sortBy;
+  if (params?.sortOrder) queryParams.sortOrder = params.sortOrder;
 
   const response = await getRequest<ExpensesListResponse>(
     API_ENDPOINTS.EXPENSES,
@@ -135,4 +149,19 @@ export const doDeleteExpense = async (
     `${API_ENDPOINTS.EXPENSES}/${expenseId}`
   );
   return response;
+};
+
+export const doImportExpenses = async (
+  rows: ImportExpenseRow[]
+): Promise<{
+  success: boolean;
+  data?: {
+    totalRows: number;
+    importedCount: number;
+    failedCount: number;
+    errors: Array<{ rowNumber: number; message: string }>;
+  };
+  error?: string;
+}> => {
+  return postRequest(API_ENDPOINTS.EXPENSES_IMPORT, { rows });
 };

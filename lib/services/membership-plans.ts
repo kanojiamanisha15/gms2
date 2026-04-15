@@ -31,11 +31,23 @@ type PlanByIdResponse = {
   error?: string;
 };
 
+export type ImportMembershipPlanRow = {
+  name: string;
+  price: number;
+  duration: string;
+  features?: string | null;
+  status: "active" | "inactive";
+  gymId?: number | null;
+};
+
 // GET /api/membership-plans - Get all plans with pagination
 export const doGetMembershipPlans = async (params?: {
   search?: string;
   page?: number;
   limit?: number;
+  sortBy?: 'name' | 'price' | 'duration' | 'features' | 'status' | 'gymId';
+  sortOrder?: 'asc' | 'desc';
+  gymId?: number;
 }): Promise<{
   plans: IMembershipPlanData[];
   page: number;
@@ -54,6 +66,9 @@ export const doGetMembershipPlans = async (params?: {
       search: params?.search?.trim(),
       page: page.toString(),
       limit: limit.toString(),
+      sortBy: params?.sortBy,
+      sortOrder: params?.sortOrder,
+      gymId: params?.gymId?.toString(),
     }
   );
 
@@ -131,4 +146,19 @@ export const doDeleteMembershipPlan = async (
     `${API_ENDPOINTS.MEMBERSHIP_PLANS}/${id}`
   );
   return response;
+};
+
+export const doImportMembershipPlans = async (
+  rows: ImportMembershipPlanRow[]
+): Promise<{
+  success: boolean;
+  data?: {
+    totalRows: number;
+    importedCount: number;
+    failedCount: number;
+    errors: Array<{ rowNumber: number; message: string }>;
+  };
+  error?: string;
+}> => {
+  return postRequest(API_ENDPOINTS.MEMBERSHIP_PLANS_IMPORT, { rows });
 };

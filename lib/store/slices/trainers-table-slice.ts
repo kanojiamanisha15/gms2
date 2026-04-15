@@ -4,12 +4,16 @@ export interface TrainersTableState {
   searchInput: string;
   page: number;
   limit: number;
+  sortBy: "name" | "email" | "phone" | "role" | "hireDate" | "status" | "gymId";
+  sortOrder: "asc" | "desc";
 }
 
 const initialState: TrainersTableState = {
   searchInput: "",
   page: 1,
   limit: 10,
+  sortBy: "hireDate",
+  sortOrder: "desc",
 };
 
 export const trainersTableSlice = createSlice({
@@ -27,8 +31,25 @@ export const trainersTableSlice = createSlice({
       state.limit = action.payload;
       state.page = 1;
     },
+    setSorting(
+      state,
+      action: {
+        payload:
+          | { id: "name" | "email" | "phone" | "role" | "hireDate" | "status" | "gymId"; desc: boolean }
+          | null;
+      }
+    ) {
+      const next = action.payload;
+      if (!next) {
+        state.sortBy = "hireDate";
+        state.sortOrder = "desc";
+        return;
+      }
+      state.sortBy = next.id;
+      state.sortOrder = next.desc ? "desc" : "asc";
+    },
   },
 });
 
-export const { setSearchInput, setPage, setLimit } = trainersTableSlice.actions;
+export const { setSearchInput, setPage, setLimit, setSorting } = trainersTableSlice.actions;
 export default trainersTableSlice.reducer;

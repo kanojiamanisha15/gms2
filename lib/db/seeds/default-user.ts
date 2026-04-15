@@ -13,10 +13,10 @@ config({ path: join(process.cwd(), '.env.local') });
 
 function getDefaultUser() {
   return {
-    email: process.env.DEFAULT_USER_EMAIL || 'admin@gmail.com',
-    password: process.env.DEFAULT_USER_PASSWORD || 'Admin@123',
-    name: process.env.DEFAULT_USER_NAME || 'admin',
-    role: process.env.DEFAULT_USER_ROLE || 'Admin',
+    email: process.env.DEFAULT_USER_EMAIL || 'superadmin@gmail.com',
+    password: process.env.DEFAULT_USER_PASSWORD || 'SuperAdmin@123',
+    name: process.env.DEFAULT_USER_NAME || 'Super Admin',
+    role: process.env.DEFAULT_USER_ROLE || 'super_admin',
   };
 }
 
@@ -32,16 +32,18 @@ export async function seedDefaultUser() {
   }
   const hashedPassword = await hashPassword(defaultUser.password);
   await query(
-    `INSERT INTO users (name, email, password, role, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+    `INSERT INTO users (name, email, password, role, permissions, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, '{}'::text[], NOW(), NOW())`,
     [
       defaultUser.name.trim(),
       defaultUser.email.toLowerCase().trim(),
       hashedPassword,
-      defaultUser.role.trim(),
+      defaultUser.role,
     ]
   );
-  console.log(`✓ Default user created: email=${defaultUser.email}, role=${defaultUser.role}`);
+  console.log(
+    `✓ Default user created: email=${defaultUser.email}, role=${defaultUser.role}`
+  );
 }
 
 async function run() {

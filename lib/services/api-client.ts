@@ -2,10 +2,10 @@
 
 import { postRequest, getRequest } from '@/lib/api';
 import { API_ENDPOINTS } from '@/lib/constants/api';
-import type { LoginCredentials, RegisterData, AuthResponse } from '@/types/auth';
+import type { LoginCredentials, AuthResponse } from '@/types/auth';
 
 // Re-export types for convenience
-export type { LoginCredentials, RegisterData, AuthResponse };
+export type { LoginCredentials, AuthResponse };
 
 /** Login user*/
 export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
@@ -31,27 +31,6 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
 }
 
 /** Register new user*/
-export async function register(userData: RegisterData): Promise<AuthResponse> {
-  try {
-    const response = await postRequest<AuthResponse>(
-      API_ENDPOINTS.AUTH.REGISTER,
-      userData
-    );
-    return response;
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-    return {
-      success: false,
-      error: 'An unexpected error occurred. Please try again.',
-    };
-  }
-}
-
 /** Get current authenticated user (cookie sent automatically) */
 export async function getCurrentUser(): Promise<{
   success: boolean;
@@ -61,7 +40,10 @@ export async function getCurrentUser(): Promise<{
       email: string;
       name: string;
       role?: string;
-      created_at: Date;
+      gymId?: number | null;
+      gymName?: string | null;
+      permissions?: string[];
+      created_at: string;
     };
   };
   error?: string;
@@ -74,7 +56,10 @@ export async function getCurrentUser(): Promise<{
         email: string;
         name: string;
         role?: string;
-        created_at: Date;
+        gymId?: number | null;
+        gymName?: string | null;
+        permissions?: string[];
+        created_at: string;
       };
     };
     error?: string;

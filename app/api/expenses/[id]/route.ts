@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission, resolveRequestedGymScope, resolveGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import type { IUpdateExpenseData, IExpenseData, IExpenseRow } from '@/types';
 
@@ -13,6 +14,7 @@ function mapExpenseRowToResponse(row: IExpenseRow): IExpenseData {
     date: row.date,
     status: row.status as IExpenseData['status'],
     vendor: row.vendor,
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -23,10 +25,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.EXPENSES_UPDATE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const scope = resolveGymScope(authz, null);
+    if (scope.error) return scope.error;
     const { id } = await params;
     const expenseId = parseInt(id, 10);
 
@@ -39,10 +43,11 @@ export async function GET(
 
     const row = await queryOne<IExpenseRow>(
       `SELECT id, category, description, amount, date, status, vendor,
-              created_at, updated_at
+              gym_id, created_at, updated_at
        FROM expenses
-       WHERE id = $1`,
-      [expenseId]
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [expenseId, scope.gymId]
     );
 
     if (!row) {
@@ -70,10 +75,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.EXPENSES_UPDATE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const baseScope = resolveGymScope(authz, null);
+    if (baseScope.error) return baseScope.error;
     const { id } = await params;
     const expenseId = parseInt(id, 10);
 
@@ -92,6 +99,9 @@ export async function PUT(
     const date = body.date != null ? String(body.date).trim() : undefined;
     const status = body.status;
     const vendor = body.vendor != null ? (String(body.vendor).trim() || null) : undefined;
+    const writeScope = resolveRequestedGymScope(authz, body.gymId, { allowUndefined: true });
+    if (writeScope.error) return writeScope.error;
+    const gymId = writeScope.gymId;
 
     const validStatuses = ['paid', 'pending', 'overdue'];
     if (status != null && !validStatuses.includes(status)) {
@@ -108,10 +118,11 @@ export async function PUT(
     }
 
     const existing = await queryOne<IExpenseRow>(
-      `SELECT id, category, description, amount, date, status, vendor
+      `SELECT id, category, description, amount, date, status, vendor, gym_id
        FROM expenses
-       WHERE id = $1`,
-      [expenseId]
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [expenseId, baseScope.gymId]
     );
 
     if (!existing) {
@@ -155,6 +166,11 @@ export async function PUT(
       values.push(vendor);
       paramIndex++;
     }
+    if (gymId !== undefined) {
+      updates.push(`gym_id = $${paramIndex}`);
+      values.push(gymId);
+      paramIndex++;
+    }
 
     if (updates.length === 0) {
       return NextResponse.json({
@@ -171,7 +187,7 @@ export async function PUT(
       SET ${updates.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING id, category, description, amount, date, status, vendor,
-                created_at, updated_at
+                gym_id, created_at, updated_at
     `;
     const row = await queryOne<IExpenseRow>(updateSql, values);
 
@@ -207,10 +223,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.EXPENSES_DELETE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const scope = resolveGymScope(authz, null);
+    if (scope.error) return scope.error;
     const { id } = await params;
     const expenseId = parseInt(id, 10);
 
@@ -222,8 +240,10 @@ export async function DELETE(
     }
 
     const existing = await queryOne<IExpenseRow>(
-      `SELECT id, category, description, amount FROM expenses WHERE id = $1`,
-      [expenseId]
+      `SELECT id, category, description, amount FROM expenses
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [expenseId, scope.gymId]
     );
 
     if (!existing) {
@@ -233,7 +253,12 @@ export async function DELETE(
       );
     }
 
-    await query(`DELETE FROM expenses WHERE id = $1`, [expenseId]);
+    await query(
+      `DELETE FROM expenses
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [expenseId, scope.gymId]
+    );
 
     const desc = existing.description || existing.category;
     await insertNotification(

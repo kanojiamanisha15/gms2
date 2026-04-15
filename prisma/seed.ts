@@ -1,6 +1,114 @@
 // prisma/seed.ts
+import { execSync } from 'node:child_process';
+import { join } from 'node:path';
+import { config as loadEnv } from 'dotenv';
 import { seedDefaultUser } from '@/lib/db/seeds/default-user';
 import { queryOne, query } from '@/lib/db/db';
+import { resolveDatabaseUrl } from '@/lib/db/database-url';
+import { hashPassword } from '@/lib/services/auth';
+
+loadEnv({ path: join(process.cwd(), '.env') });
+loadEnv({ path: join(process.cwd(), '.env.local') });
+
+const databaseUrl = resolveDatabaseUrl();
+if (!databaseUrl) {
+    console.error(
+        'Set DATABASE_URL in .env / .env.local, or set DB_HOST, DB_NAME, DB_USER, and DB_PASSWORD.'
+    );
+    process.exit(1);
+}
+process.env.DATABASE_URL = databaseUrl;
+
+console.log('Applying database migrations...');
+try {
+    execSync('npx prisma migrate deploy', {
+        stdio: 'inherit',
+        cwd: process.cwd(),
+        env: process.env,
+    });
+} catch {
+    process.exit(1);
+}
+
+async function seedGyms() {
+    const existing = await queryOne<{ count: string }>(
+        'SELECT COUNT(*)::text AS count FROM gyms'
+    );
+    if (existing && existing.count !== '0') {
+        return;
+    }
+
+    const gyms = [
+        {
+            gym_name: 'Iron Forge Fitness',
+            address: '101 MG Road, Bengaluru',
+        },
+        {
+            gym_name: 'Peak Performance Club',
+            address: '22 Linking Road, Mumbai',
+        },
+        {
+            gym_name: 'Pulse Arena Gym',
+            address: '17 Banjara Hills, Hyderabad',
+        },
+    ];
+
+    for (const gym of gyms) {
+        await query(
+            `INSERT INTO gyms (
+        gym_name,
+        address,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, NOW(), NOW())`,
+            [gym.gym_name, gym.address]
+        );
+    }
+}
+
+async function seedUsersForGyms() {
+    const gyms = await query<{ gym_id: number; gym_name: string }>(
+        'SELECT gym_id, gym_name FROM gyms ORDER BY gym_id ASC'
+    );
+    if (gyms.length === 0) {
+        return;
+    }
+
+    const defaultPassword = process.env.DEFAULT_GYM_USER_PASSWORD || 'GymUser@123';
+    const hashedPassword = await hashPassword(defaultPassword);
+
+    const roleTemplates = [
+        { role: 'manager', nameSuffix: 'Manager', emailPrefix: 'manager' },
+        { role: 'user', nameSuffix: 'User One', emailPrefix: 'user1' },
+        { role: 'user', nameSuffix: 'User Two', emailPrefix: 'user2' },
+    ] as const;
+
+    for (const gym of gyms) {
+
+        for (const template of roleTemplates) {
+            const email = `${template.emailPrefix}.gym${gym.gym_id}@example.com`;
+            const existing = await queryOne<{ id: number }>(
+                'SELECT id FROM users WHERE email = $1',
+                [email]
+            );
+            if (existing) {
+                continue;
+            }
+
+            await query(
+                `INSERT INTO users (name, email, password, role, permissions, gym_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, '{}'::text[], $5, NOW(), NOW())`,
+                [
+                    `${gym.gym_name} ${template.nameSuffix}`.trim(),
+                    email,
+                    hashedPassword,
+                    template.role,
+                    gym.gym_id,
+                ]
+            );
+        }
+    }
+}
 
 async function seedMembers() {
     const existing = await queryOne<{ count: string }>(
@@ -23,6 +131,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '5DE01',
@@ -35,6 +144,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 2,
         },
         {
             member_id: '3DE01',
@@ -47,6 +157,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5OC01',
@@ -59,6 +170,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '4JA01',
@@ -71,6 +183,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '5JA02',
@@ -83,6 +196,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 3,
         },
         {
             member_id: '3NO01',
@@ -95,6 +209,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 1,
         },
         {
             member_id: '5DE02',
@@ -107,6 +222,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 2,
         },
         {
             member_id: '4JA02',
@@ -119,6 +235,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '4FE01',
@@ -131,6 +248,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 1,
         },
         {
             member_id: '3OC01',
@@ -143,6 +261,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '5OC02',
@@ -155,6 +274,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 3,
         },
         {
             member_id: '5MR01',
@@ -167,6 +287,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '3MR02',
@@ -179,6 +300,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '4AP01',
@@ -191,6 +313,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5AP02',
@@ -203,6 +326,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '3MY01',
@@ -215,6 +339,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '4MY02',
@@ -227,6 +352,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5JN01',
@@ -239,6 +365,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '3JN02',
@@ -251,6 +378,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '4AU01',
@@ -263,6 +391,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5AU02',
@@ -275,6 +404,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '3SE01',
@@ -287,6 +417,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '4OC03',
@@ -299,6 +430,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5DE03',
@@ -311,8 +443,8 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
-        // Extra members to further populate plan expiries across months
         {
             member_id: '3JA03',
             name: 'Zara Khan',
@@ -324,6 +456,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '4FE02',
@@ -336,6 +469,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5MR02',
@@ -348,6 +482,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '3AP03',
@@ -360,6 +495,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '4MY03',
@@ -372,6 +508,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5MY03',
@@ -384,6 +521,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '3JN03',
@@ -396,6 +534,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '4JL01',
@@ -408,6 +547,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5SP01',
@@ -420,6 +560,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '3OC04',
@@ -432,6 +573,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '4NV01',
@@ -444,6 +586,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5DC01',
@@ -456,6 +599,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '5JN26',
@@ -468,6 +612,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 399.99,
+            gym_id: 2,
         },
         {
             member_id: '3MR26',
@@ -480,6 +625,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 249.99,
+            gym_id: 3,
         },
         {
             member_id: '4FE26',
@@ -492,6 +638,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 219.99,
+            gym_id: 1,
         },
         {
             member_id: '5FE26',
@@ -504,8 +651,8 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 449.99,
+            gym_id: 2,
         },
-        // Extra members across 12 months for financial chart (revenue by month)
         {
             member_id: '5AP25',
             name: 'Aarav Kapoor',
@@ -517,6 +664,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 349.99,
+            gym_id: 3,
         },
         {
             member_id: '3AP25',
@@ -529,6 +677,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 1,
         },
         {
             member_id: '5MY25',
@@ -541,6 +690,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 2,
         },
         {
             member_id: '3MY25',
@@ -553,6 +703,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 219.99,
+            gym_id: 3,
         },
         {
             member_id: '5JN25',
@@ -565,6 +716,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 399.99,
+            gym_id: 1,
         },
         {
             member_id: '3JN25',
@@ -577,6 +729,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 2,
         },
         {
             member_id: '5JL25',
@@ -589,6 +742,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 329.99,
+            gym_id: 3,
         },
         {
             member_id: '3JL25',
@@ -601,6 +755,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 249.99,
+            gym_id: 1,
         },
         {
             member_id: '5AG25',
@@ -613,6 +768,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 359.99,
+            gym_id: 2,
         },
         {
             member_id: '3AG25',
@@ -625,6 +781,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5SP25',
@@ -637,6 +794,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 299.99,
+            gym_id: 1,
         },
         {
             member_id: '3SP25',
@@ -649,6 +807,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 229.99,
+            gym_id: 2,
         },
         {
             member_id: '5OT25',
@@ -661,6 +820,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 379.99,
+            gym_id: 3,
         },
         {
             member_id: '3OT25',
@@ -673,6 +833,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 199.99,
+            gym_id: 1,
         },
         {
             member_id: '5NV25',
@@ -685,6 +846,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 319.99,
+            gym_id: 2,
         },
         {
             member_id: '3NV25',
@@ -697,6 +859,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 209.99,
+            gym_id: 3,
         },
         {
             member_id: '5DZ25',
@@ -709,6 +872,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 349.99,
+            gym_id: 1,
         },
         {
             member_id: '3DZ25',
@@ -721,6 +885,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 239.99,
+            gym_id: 2,
         },
         {
             member_id: '5JA26',
@@ -733,6 +898,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 429.99,
+            gym_id: 3,
         },
         {
             member_id: '3JA26',
@@ -745,6 +911,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 219.99,
+            gym_id: 1,
         },
         {
             member_id: '5FB26',
@@ -757,6 +924,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 389.99,
+            gym_id: 2,
         },
         {
             member_id: '3FB26',
@@ -769,6 +937,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 199.99,
+            gym_id: 3,
         },
         {
             member_id: '5MA26',
@@ -781,6 +950,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'paid',
             payment_amount: 419.99,
+            gym_id: 1,
         },
         {
             member_id: '3MA26',
@@ -793,6 +963,7 @@ async function seedMembers() {
             status: 'active',
             payment_status: 'unpaid',
             payment_amount: 259.99,
+            gym_id: 2,
         },
     ];
 
@@ -809,9 +980,10 @@ async function seedMembers() {
         status,
         payment_status,
         payment_amount,
+        gym_id,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
             [
                 m.member_id,
                 m.name,
@@ -823,6 +995,7 @@ async function seedMembers() {
                 m.status,
                 m.payment_status,
                 m.payment_amount,
+                m.gym_id,
             ]
         );
     }
@@ -844,6 +1017,7 @@ async function seedPayments() {
             payment_date: '2025-04-05',
             method: 'UPI',
             status: 'completed',
+            gym_id: 1,
         },
         {
             member_code: '5DE01',
@@ -851,6 +1025,7 @@ async function seedPayments() {
             payment_date: '2025-05-10',
             method: 'Card',
             status: 'completed',
+            gym_id: 2,
         },
         {
             member_code: '3DE01',
@@ -858,6 +1033,7 @@ async function seedPayments() {
             payment_date: '2025-06-15',
             method: 'Cash',
             status: 'pending',
+            gym_id: 3,
         },
         {
             member_code: '5OC01',
@@ -865,6 +1041,7 @@ async function seedPayments() {
             payment_date: '2025-07-01',
             method: 'UPI',
             status: 'completed',
+            gym_id: 1,
         },
         {
             member_code: '4JA01',
@@ -872,6 +1049,7 @@ async function seedPayments() {
             payment_date: '2025-08-12',
             method: 'Card',
             status: 'completed',
+            gym_id: 2,
         },
         {
             member_code: '5JA02',
@@ -879,6 +1057,7 @@ async function seedPayments() {
             payment_date: '2025-09-03',
             method: 'UPI',
             status: 'completed',
+            gym_id: 3,
         },
         {
             member_code: '3NO01',
@@ -886,6 +1065,7 @@ async function seedPayments() {
             payment_date: '2025-10-20',
             method: 'Cash',
             status: 'completed',
+            gym_id: 1,
         },
         {
             member_code: '5DE02',
@@ -893,6 +1073,7 @@ async function seedPayments() {
             payment_date: '2025-11-08',
             method: 'Card',
             status: 'completed',
+            gym_id: 2,
         },
         {
             member_code: '4JA02',
@@ -900,6 +1081,7 @@ async function seedPayments() {
             payment_date: '2025-12-18',
             method: 'UPI',
             status: 'pending',
+            gym_id: 3,
         },
         // 2026 payments – around current dashboard period
         {
@@ -908,6 +1090,7 @@ async function seedPayments() {
             payment_date: '2026-01-05',
             method: 'UPI',
             status: 'completed',
+            gym_id: 1,
         },
         {
             member_code: '3OC01',
@@ -915,6 +1098,7 @@ async function seedPayments() {
             payment_date: '2026-02-10',
             method: 'Card',
             status: 'completed',
+            gym_id: 2,
         },
         {
             member_code: '5OC02',
@@ -922,6 +1106,7 @@ async function seedPayments() {
             payment_date: '2026-03-02',
             method: 'UPI',
             status: 'completed',
+            gym_id: 3,
         },
     ];
 
@@ -933,6 +1118,7 @@ async function seedPayments() {
         payment_date,
         payment_method,
         status,
+        gym_id,
         created_at
       ) VALUES (
         (SELECT id FROM members WHERE member_id = $1),
@@ -940,9 +1126,10 @@ async function seedPayments() {
         $3,
         $4,
         $5,
+        $6,
         NOW()
       )`,
-            [p.member_code, p.amount, p.payment_date, p.method, p.status]
+            [p.member_code, p.amount, p.payment_date, p.method, p.status, p.gym_id]
         );
     }
 }
@@ -963,6 +1150,7 @@ async function seedNotifications() {
             type: 'success',
             read: false,
             created_at: '2026-01-15T10:30:00',
+            gym_id: 1,
         },
         {
             title: 'Payment Received',
@@ -970,6 +1158,7 @@ async function seedNotifications() {
             type: 'success',
             read: false,
             created_at: '2026-01-14T14:20:00',
+            gym_id: 2,
         },
         {
             title: 'Membership Expiring Soon',
@@ -977,6 +1166,7 @@ async function seedNotifications() {
             type: 'warning',
             read: false,
             created_at: '2026-01-13T09:15:00',
+            gym_id: 3,
         },
         {
             title: 'Equipment Maintenance Due',
@@ -984,6 +1174,7 @@ async function seedNotifications() {
             type: 'info',
             read: true,
             created_at: '2026-01-12T16:45:00',
+            gym_id: 1,
         },
         {
             title: 'Payment Overdue',
@@ -991,6 +1182,7 @@ async function seedNotifications() {
             type: 'error',
             read: false,
             created_at: '2026-01-11T11:00:00',
+            gym_id: 2,
         },
         {
             title: 'New Trainer Added',
@@ -998,6 +1190,7 @@ async function seedNotifications() {
             type: 'info',
             read: true,
             created_at: '2026-01-10T08:30:00',
+            gym_id: 3,
         },
         {
             title: 'Monthly Report Ready',
@@ -1005,6 +1198,7 @@ async function seedNotifications() {
             type: 'info',
             read: true,
             created_at: '2026-01-09T12:00:00',
+            gym_id: 1,
         },
         {
             title: 'Low Stock Alert',
@@ -1012,14 +1206,15 @@ async function seedNotifications() {
             type: 'warning',
             read: true,
             created_at: '2026-01-08T10:15:00',
+            gym_id: 2,
         },
     ];
 
     for (const n of rows) {
         await query(
-            `INSERT INTO notifications (title, message, type, read, created_at)
-       VALUES ($1, $2, $3, $4, $5)`,
-            [n.title, n.message, n.type, n.read, n.created_at]
+            `INSERT INTO notifications (title, message, type, read, created_at, gym_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+            [n.title, n.message, n.type, n.read, n.created_at, n.gym_id]
         );
     }
 }
@@ -1039,6 +1234,7 @@ async function seedMembershipPlans() {
             duration_days: '30',
             features: 'Gym access, locker room, basic support',
             status: 'active',
+            gym_id: 3,
         },
         {
             name: 'Premium Monthly',
@@ -1046,6 +1242,7 @@ async function seedMembershipPlans() {
             duration_days: '30',
             features: 'All Standard features + group classes + sauna access',
             status: 'active',
+            gym_id: 1,
         },
         {
             name: 'Quarterly',
@@ -1053,6 +1250,7 @@ async function seedMembershipPlans() {
             duration_days: '90',
             features: 'Discounted 3‑month plan, full gym access',
             status: 'active',
+            gym_id: 2,
         },
         {
             name: 'Annual',
@@ -1060,6 +1258,7 @@ async function seedMembershipPlans() {
             duration_days: '365',
             features: 'Best value yearly plan with all facilities',
             status: 'active',
+            gym_id: 3,
         },
     ];
 
@@ -1071,10 +1270,11 @@ async function seedMembershipPlans() {
         duration_days,
         features,
         status,
+        gym_id,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-            [p.name, p.price, p.duration_days, p.features, p.status]
+      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+            [p.name, p.price, p.duration_days, p.features, p.status, p.gym_id]
         );
     }
 }
@@ -1095,6 +1295,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-11-01',
             status: 'active',
+            gym_id: 1,
         },
         {
             name: 'Michael Adams',
@@ -1103,6 +1304,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-10-15',
             status: 'active',
+            gym_id: 2,
         },
         {
             name: 'Rachel Green',
@@ -1111,6 +1313,7 @@ async function seedTrainers() {
             role: 'Staff',
             hire_date: '2024-09-10',
             status: 'active',
+            gym_id: 3,
         },
         {
             name: 'David Johnson',
@@ -1119,6 +1322,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-08-05',
             status: 'active',
+            gym_id: 1,
         },
         {
             name: 'Emily Clark',
@@ -1127,6 +1331,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-07-20',
             status: 'active',
+            gym_id: 2,
         },
         {
             name: 'Peter Parker',
@@ -1135,6 +1340,7 @@ async function seedTrainers() {
             role: 'Staff',
             hire_date: '2024-07-01',
             status: 'inactive',
+            gym_id: 3,
         },
         {
             name: 'Olivia Brown',
@@ -1143,6 +1349,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-06-10',
             status: 'active',
+            gym_id: 1,
         },
         {
             name: 'Liam Wilson',
@@ -1151,6 +1358,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-05-18',
             status: 'active',
+            gym_id: 2,
         },
         {
             name: 'Sophia Martinez',
@@ -1159,6 +1367,7 @@ async function seedTrainers() {
             role: 'Staff',
             hire_date: '2024-05-02',
             status: 'active',
+            gym_id: 3,
         },
         {
             name: 'James Anderson',
@@ -1167,6 +1376,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-04-12',
             status: 'active',
+            gym_id: 1,
         },
         {
             name: 'Isabella Lee',
@@ -1175,6 +1385,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-03-25',
             status: 'inactive',
+            gym_id: 2,
         },
         {
             name: 'Noah Patel',
@@ -1183,6 +1394,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-03-05',
             status: 'active',
+            gym_id: 3,
         },
         {
             name: 'Ava Chen',
@@ -1191,6 +1403,7 @@ async function seedTrainers() {
             role: 'Staff',
             hire_date: '2024-02-17',
             status: 'active',
+            gym_id: 1,
         },
         {
             name: 'William Scott',
@@ -1199,6 +1412,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-01-30',
             status: 'active',
+            gym_id: 2,
         },
         {
             name: 'Mia Rodriguez',
@@ -1207,6 +1421,7 @@ async function seedTrainers() {
             role: 'Trainer',
             hire_date: '2024-01-10',
             status: 'active',
+            gym_id: 3,
         },
     ];
 
@@ -1219,10 +1434,11 @@ async function seedTrainers() {
         role,
         hire_date,
         status,
+        gym_id,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
-            [t.name, t.email, t.phone, t.role, t.hire_date, t.status]
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+            [t.name, t.email, t.phone, t.role, t.hire_date, t.status, t.gym_id]
         );
     }
 }
@@ -1245,6 +1461,7 @@ async function seedAttendance() {
             check_out_time: '10:15',
             status: 'checked-out',
             duration: '1h 45m',
+            gym_id: 1,
         },
         {
             member_id: '5DE01',
@@ -1255,6 +1472,7 @@ async function seedAttendance() {
             check_out_time: null,
             status: 'present',
             duration: null,
+            gym_id: 2,
         },
         {
             member_id: '3DE01',
@@ -1265,6 +1483,7 @@ async function seedAttendance() {
             check_out_time: '11:30',
             status: 'checked-out',
             duration: '1h 30m',
+            gym_id: 3,
         },
         {
             member_id: '5OC01',
@@ -1275,6 +1494,7 @@ async function seedAttendance() {
             check_out_time: '09:20',
             status: 'checked-out',
             duration: '1h 35m',
+            gym_id: 1,
         },
         {
             member_id: '4JA01',
@@ -1285,6 +1505,7 @@ async function seedAttendance() {
             check_out_time: null,
             status: 'present',
             duration: null,
+            gym_id: 2,
         },
     ];
 
@@ -1299,9 +1520,10 @@ async function seedAttendance() {
         check_out_time,
         status,
         duration,
+        gym_id,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())`,
             [
                 a.member_id,
                 a.member_name,
@@ -1311,6 +1533,7 @@ async function seedAttendance() {
                 a.check_out_time,
                 a.status,
                 a.duration,
+                a.gym_id,
             ]
         );
     }
@@ -1332,6 +1555,7 @@ async function seedExpenses() {
             date: '2025-01-01',
             status: 'paid',
             vendor: 'ABC Properties',
+            gym_id: 1,
         },
         {
             category: 'utilities',
@@ -1340,6 +1564,7 @@ async function seedExpenses() {
             date: '2025-01-05',
             status: 'paid',
             vendor: 'City Utilities',
+            gym_id: 2,
         },
         {
             category: 'maintenance',
@@ -1348,6 +1573,7 @@ async function seedExpenses() {
             date: '2025-01-10',
             status: 'pending',
             vendor: 'FitFix Services',
+            gym_id: 3,
         },
         {
             category: 'supplies',
@@ -1356,6 +1582,7 @@ async function seedExpenses() {
             date: '2025-01-12',
             status: 'paid',
             vendor: 'CleanCo',
+            gym_id: 1,
         },
         {
             category: 'marketing',
@@ -1364,6 +1591,7 @@ async function seedExpenses() {
             date: '2025-01-15',
             status: 'pending',
             vendor: 'AdBoost',
+            gym_id: 2,
         },
         {
             category: 'rent',
@@ -1372,6 +1600,7 @@ async function seedExpenses() {
             date: '2026-03-01',
             status: 'paid',
             vendor: 'ABC Properties',
+            gym_id: 3,
         },
         {
             category: 'utilities',
@@ -1380,6 +1609,7 @@ async function seedExpenses() {
             date: '2026-03-05',
             status: 'paid',
             vendor: 'City Utilities',
+            gym_id: 1,
         },
         {
             category: 'staff',
@@ -1388,6 +1618,7 @@ async function seedExpenses() {
             date: '2026-03-10',
             status: 'paid',
             vendor: 'Payroll Services',
+            gym_id: 2,
         },
         {
             category: 'maintenance',
@@ -1396,6 +1627,7 @@ async function seedExpenses() {
             date: '2026-03-18',
             status: 'pending',
             vendor: 'FitFix Services',
+            gym_id: 3,
         },
         {
             category: 'marketing',
@@ -1404,39 +1636,40 @@ async function seedExpenses() {
             date: '2026-03-22',
             status: 'pending',
             vendor: 'AdBoost',
+            gym_id: 1,
         },
         // Expenses across 12 months for financial chart (realistic monthly spread)
-        { category: 'rent', description: 'Monthly rent Feb', amount: 1200, date: '2025-02-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Feb', amount: 380, date: '2025-02-05', status: 'paid', vendor: 'City Utilities' },
-        { category: 'rent', description: 'Monthly rent Apr', amount: 1200, date: '2025-04-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Apr', amount: 420, date: '2025-04-08', status: 'paid', vendor: 'City Utilities' },
-        { category: 'maintenance', description: 'Equipment Apr', amount: 550, date: '2025-04-15', status: 'paid', vendor: 'FitFix' },
-        { category: 'rent', description: 'Monthly rent May', amount: 1200, date: '2025-05-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities May', amount: 395, date: '2025-05-06', status: 'paid', vendor: 'City Utilities' },
-        { category: 'rent', description: 'Monthly rent Jun', amount: 1250, date: '2025-06-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Jun', amount: 480, date: '2025-06-10', status: 'paid', vendor: 'City Utilities' },
-        { category: 'supplies', description: 'Cleaning Jun', amount: 220, date: '2025-06-18', status: 'paid', vendor: 'CleanCo' },
-        { category: 'rent', description: 'Monthly rent Jul', amount: 1250, date: '2025-07-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Jul', amount: 510, date: '2025-07-08', status: 'paid', vendor: 'City Utilities' },
-        { category: 'rent', description: 'Monthly rent Aug', amount: 1250, date: '2025-08-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Aug', amount: 490, date: '2025-08-05', status: 'paid', vendor: 'City Utilities' },
-        { category: 'staff', description: 'Salaries Aug', amount: 4500, date: '2025-08-10', status: 'paid', vendor: 'Payroll' },
-        { category: 'rent', description: 'Monthly rent Sep', amount: 1250, date: '2025-09-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Sep', amount: 460, date: '2025-09-07', status: 'paid', vendor: 'City Utilities' },
-        { category: 'marketing', description: 'Ads Sep', amount: 800, date: '2025-09-20', status: 'paid', vendor: 'AdBoost' },
-        { category: 'rent', description: 'Monthly rent Oct', amount: 1280, date: '2025-10-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Oct', amount: 440, date: '2025-10-06', status: 'paid', vendor: 'City Utilities' },
-        { category: 'maintenance', description: 'Equipment Oct', amount: 620, date: '2025-10-15', status: 'paid', vendor: 'FitFix' },
-        { category: 'rent', description: 'Monthly rent Nov', amount: 1280, date: '2025-11-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Nov', amount: 410, date: '2025-11-08', status: 'paid', vendor: 'City Utilities' },
-        { category: 'rent', description: 'Monthly rent Dec', amount: 1280, date: '2025-12-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Dec', amount: 470, date: '2025-12-05', status: 'paid', vendor: 'City Utilities' },
-        { category: 'staff', description: 'Salaries Dec', amount: 4800, date: '2025-12-10', status: 'paid', vendor: 'Payroll' },
-        { category: 'rent', description: 'Monthly rent Jan 26', amount: 1300, date: '2026-01-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Jan 26', amount: 450, date: '2026-01-06', status: 'paid', vendor: 'City Utilities' },
-        { category: 'rent', description: 'Monthly rent Feb 26', amount: 1300, date: '2026-02-01', status: 'paid', vendor: 'ABC Properties' },
-        { category: 'utilities', description: 'Utilities Feb 26', amount: 430, date: '2026-02-07', status: 'paid', vendor: 'City Utilities' },
-        { category: 'maintenance', description: 'Equipment Feb 26', amount: 720, date: '2026-02-14', status: 'paid', vendor: 'FitFix' },
+        { category: 'rent', description: 'Monthly rent Feb', amount: 1200, date: '2025-02-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Feb', amount: 380, date: '2025-02-05', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Apr', amount: 1200, date: '2025-04-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Apr', amount: 420, date: '2025-04-08', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'maintenance', description: 'Equipment Apr', amount: 550, date: '2025-04-15', status: 'paid', vendor: 'FitFix', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent May', amount: 1200, date: '2025-05-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities May', amount: 395, date: '2025-05-06', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Jun', amount: 1250, date: '2025-06-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Jun', amount: 480, date: '2025-06-10', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'supplies', description: 'Cleaning Jun', amount: 220, date: '2025-06-18', status: 'paid', vendor: 'CleanCo', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Jul', amount: 1250, date: '2025-07-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Jul', amount: 510, date: '2025-07-08', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Aug', amount: 1250, date: '2025-08-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Aug', amount: 490, date: '2025-08-05', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'staff', description: 'Salaries Aug', amount: 4500, date: '2025-08-10', status: 'paid', vendor: 'Payroll', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Sep', amount: 1250, date: '2025-09-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Sep', amount: 460, date: '2025-09-07', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'marketing', description: 'Ads Sep', amount: 800, date: '2025-09-20', status: 'paid', vendor: 'AdBoost', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Oct', amount: 1280, date: '2025-10-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Oct', amount: 440, date: '2025-10-06', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'maintenance', description: 'Equipment Oct', amount: 620, date: '2025-10-15', status: 'paid', vendor: 'FitFix', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Nov', amount: 1280, date: '2025-11-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Nov', amount: 410, date: '2025-11-08', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Dec', amount: 1280, date: '2025-12-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Dec', amount: 470, date: '2025-12-05', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'staff', description: 'Salaries Dec', amount: 4800, date: '2025-12-10', status: 'paid', vendor: 'Payroll', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Jan 26', amount: 1300, date: '2026-01-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Jan 26', amount: 450, date: '2026-01-06', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'rent', description: 'Monthly rent Feb 26', amount: 1300, date: '2026-02-01', status: 'paid', vendor: 'ABC Properties', gym_id: 1 },
+        { category: 'utilities', description: 'Utilities Feb 26', amount: 430, date: '2026-02-07', status: 'paid', vendor: 'City Utilities', gym_id: 1 },
+        { category: 'maintenance', description: 'Equipment Feb 26', amount: 720, date: '2026-02-14', status: 'paid', vendor: 'FitFix', gym_id: 1 },
     ];
 
     for (const e of expenses) {
@@ -1448,15 +1681,18 @@ async function seedExpenses() {
         date,
         status,
         vendor,
+        gym_id,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
-            [e.category, e.description, e.amount, e.date, e.status, e.vendor]
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+            [e.category, e.description, e.amount, e.date, e.status, e.vendor, e.gym_id]
         );
     }
 }
 async function main() {
     await seedDefaultUser();
+    await seedGyms();
+    await seedUsersForGyms();
     await seedMembers();
     await seedPayments();
     await seedMembershipPlans();

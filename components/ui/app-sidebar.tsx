@@ -5,12 +5,23 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
+  Users2,
   UserCog,
   CreditCard,
   Receipt,
-  ClipboardCheck,
   Layers,
+  Building2,
 } from "lucide-react";
+import {
+  getFirstAccessibleHref,
+  userCanViewDashboard,
+  userCanViewMembers,
+  userCanViewGyms,
+  userCanViewMembershipPlans,
+  userCanViewPayments,
+  userCanViewTrainers,
+  userCanViewUsersPage,
+} from "@/lib/route-access";
 
 import { NavMain } from "@/components/ui/nav-main";
 import { NavSecondary } from "@/components/ui/nav-secondary";
@@ -32,52 +43,17 @@ const defaultUser = {
   avatar: "",
 };
 
-const data = {
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      title: "Members",
-      url: "/members",
-      icon: Users,
-    },
-    {
-      title: "Trainers/Staff",
-      url: "/trainers-staff",
-      icon: UserCog,
-    },
-    {
-      title: "Membership Plans",
-      url: "/membership-plans",
-      icon: CreditCard,
-    },
-    {
-      title: "Payments and Invoice",
-      url: "/payments",
-      icon: Receipt,
-    },
-    // {
-    //   title: "Attendance Tracker",
-    //   url: "/attendance",
-    //   icon: ClipboardCheck,
-    // },
-  ],
-  navSecondary: [
-    // {
-    //   title: "Settings",
-    //   url: "/settings",
-    //   icon: Settings,
-    // },
-    // {
-    //   title: "Help",
-    //   url: "/help",
-    //   icon: HelpCircle,
-    // },
-  ],
-};
+const navSecondary: {
+  title: string;
+  url: string;
+  icon: typeof LayoutDashboard;
+}[] = [
+  // {
+  //   title: "Settings",
+  //   url: "/settings",
+  //   icon: Settings,
+  // },
+];
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user?: {
@@ -85,7 +61,8 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
     name: string;
     email: string;
     role?: string;
-    created_at?: Date;
+    permissions?: string[];
+    created_at?: string | Date;
   };
 };
 
@@ -93,6 +70,41 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile, setOpen } = useSidebar();
+
+  const navMain = React.useMemo(() => {
+    const items: {
+      title: string;
+      url: string;
+      icon: typeof LayoutDashboard;
+    }[] = [];
+    if (userCanViewDashboard(userProp)) {
+      items.push({ title: "Dashboard", url: "/dashboard", icon: LayoutDashboard });
+    }
+    if (userCanViewUsersPage(userProp)) {
+      items.push({ title: "Users", url: "/users", icon: Users2 });
+    }
+    if (userCanViewMembers(userProp)) {
+      items.push({ title: "Members", url: "/members", icon: Users });
+    }
+    if (userCanViewGyms(userProp)) {
+      items.push({ title: "Gyms", url: "/gyms", icon: Building2 });
+    }
+    if (userCanViewTrainers(userProp)) {
+      items.push({ title: "Trainers/Staff", url: "/trainers-staff", icon: UserCog });
+    }
+    if (userCanViewMembershipPlans(userProp)) {
+      items.push({ title: "Membership Plans", url: "/membership-plans", icon: CreditCard });
+    }
+    if (userCanViewPayments(userProp)) {
+      items.push({ title: "Payments and Invoice", url: "/payments", icon: Receipt });
+    }
+    return items;
+  }, [userProp]);
+
+  const primaryNavHref = userProp
+    ? getFirstAccessibleHref(userProp)
+    : "/dashboard";
+
   const user = userProp
     ? {
         name: userProp.name,
@@ -101,15 +113,15 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
       }
     : defaultUser;
 
-  const isOnDashboard = pathname === "/dashboard" || pathname === "/";
+  const isOnPrimaryNav = pathname === primaryNavHref || pathname === "/";
   const closeSidebar = () => {
     if (isMobile) setOpenMobile(false);
     else setOpen(false);
   };
   const handleLogoClick = () => {
-    if (!isOnDashboard) {
+    if (!isOnPrimaryNav) {
       closeSidebar();
-      router.push("/dashboard");
+      router.push(primaryNavHref);
     }
   };
 
@@ -120,7 +132,7 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton
               className="data-[slot=sidebar-menu-button]:!p-1.5 cursor-pointer"
-              onClick={!isOnDashboard ? handleLogoClick : undefined}
+              onClick={!isOnPrimaryNav ? handleLogoClick : undefined}
             >
               <Layers className="!size-5" />
               <span className="text-base font-semibold">Acme Inc.</span>
@@ -129,8 +141,8 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={navMain} />
+        <NavSecondary items={navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import { generateMemberId } from '@/lib/utils/member-id';
 import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { ICreateMemberData, IMemberData, IMemberRow } from '@/types';
+
+const SORT_FIELDS = {
+  memberId: 'member_id',
+  name: 'name',
+  email: 'email',
+  phone: 'phone',
+  membershipType: 'membership_type',
+  joinDate: 'join_date',
+  expiryDate: 'expiry_date',
+  status: 'status',
+  paymentStatus: 'payment_status',
+  paymentAmount: 'payment_amount',
+  gymId: 'gym_id',
+} as const;
+
+const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
 
 function mapMemberRowToResponse(row: IMemberRow): IMemberData {
   return {
@@ -19,6 +36,7 @@ function mapMemberRowToResponse(row: IMemberRow): IMemberData {
     status: row.status,
     paymentStatus: row.payment_status,
     paymentAmount: parseFloat(row.payment_amount ?? '0'),
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -26,21 +44,30 @@ function mapMemberRowToResponse(row: IMemberRow): IMemberData {
 
 /** GET /api/members - Return paginated list of members (requires auth). Query: page, limit, search */
 export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERS_READ);
+  if ('error' in authz) return authz.error;
 
   try {
     const { searchParams } = new URL(request.url);
+
     const search = searchParams.get('search');
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
+    const sortByRaw = searchParams.get('sortBy') ?? 'joinDate';
+    const sortOrderRaw = searchParams.get('sortOrder') ?? 'desc';
     const page = parseInt(searchParams.get('page') ?? '1', 10);
     const limit = parseInt(searchParams.get('limit') ?? '10', 10);
+    const sortBy = (sortByRaw in SORT_FIELDS ? sortByRaw : 'joinDate') as keyof typeof SORT_FIELDS;
+    const sortOrder = sortOrderRaw.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     const pageNum = Math.max(1, page);
     const limitNum = Math.min(Math.max(1, limit), 100);
     const offset = (pageNum - 1) * limitNum;
 
     const sqlParams: (string | number)[] = [];
+
     const conditions: string[] = [];
+
     let paramIndex = 1;
 
     if (search?.trim()) {
@@ -50,8 +77,14 @@ export async function GET(request: NextRequest) {
       sqlParams.push(`%${search.trim()}%`);
       paramIndex++;
     }
+    if (scope.gymId != null) {
+      conditions.push(`gym_id = $${paramIndex}`);
+      sqlParams.push(scope.gymId);
+      paramIndex++;
+    }
 
     const whereSql = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
+    const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, id DESC`;
 
     const countRows = await query<{ total: string }>(
       `SELECT COUNT(*) as total FROM members${whereSql}`,
@@ -62,11 +95,11 @@ export async function GET(request: NextRequest) {
 
     const membersSql = `
       SELECT id, member_id, name, email, phone, membership_type,
-             join_date, expiry_date, status, payment_status, payment_amount,
+             join_date, expiry_date, status, payment_status, payment_amount, gym_id,
              created_at, updated_at
       FROM members
       ${whereSql}
-      ORDER BY created_at DESC
+      ORDER BY ${orderBySql}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     const memberRows = await query<IMemberRow>(membersSql, [...sqlParams, limitNum, offset]);
@@ -95,8 +128,8 @@ export async function GET(request: NextRequest) {
 
 /** POST /api/members - Create a new member (requires auth). */
 export async function POST(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERS_ADD);
+  if ('error' in authz) return authz.error;
 
   try {
     const body = (await request.json()) as ICreateMemberData;
@@ -111,6 +144,9 @@ export async function POST(request: NextRequest) {
     const status = typeof body.status === 'string' ? body.status : '';
     const paymentStatus = typeof body.paymentStatus === 'string' ? body.paymentStatus : '';
     const paymentAmount = Number(body.paymentAmount) ?? 0;
+    const scope = resolveRequestedGymScope(authz, body.gymId);
+    if (scope.error) return scope.error;
+    const gymId = scope.gymId;
 
     if (!name) {
       return NextResponse.json(
@@ -127,6 +163,19 @@ export async function POST(request: NextRequest) {
     if (!phone) {
       return NextResponse.json(
         { success: false, error: 'Phone is required' },
+        { status: 400 }
+      );
+    }
+    const email = body.email != null ? String(body.email).trim() : '';
+    if (!email) {
+      return NextResponse.json(
+        { success: false, error: 'Email is required' },
+        { status: 400 }
+      );
+    }
+    if (!EMAIL_REGEX.test(email)) {
+      return NextResponse.json(
+        { success: false, error: 'Email is invalid' },
         { status: 400 }
       );
     }
@@ -157,8 +206,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const email = body.email != null ? String(body.email).trim() || null : null;
-
     // Next sequential number for same join_date month/year
     const countRows = await query<{ count: string }>(
       `SELECT COUNT(*) AS count FROM members
@@ -171,11 +218,11 @@ export async function POST(request: NextRequest) {
     const insertSql = `
       INSERT INTO members (
         member_id, name, email, phone, membership_type,
-        join_date, expiry_date, status, payment_status, payment_amount
+        join_date, expiry_date, status, payment_status, payment_amount, gym_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10, $11)
       RETURNING id, member_id, name, email, phone, membership_type,
-                join_date, expiry_date, status, payment_status, payment_amount,
+                join_date, expiry_date, status, payment_status, payment_amount, gym_id,
                 created_at, updated_at
     `;
     const row = await queryOne<IMemberRow>(insertSql, [
@@ -189,6 +236,7 @@ export async function POST(request: NextRequest) {
       status,
       paymentStatus,
       paymentAmount,
+      gymId,
     ]);
 
     if (!row) {

@@ -42,6 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 const PAGE_SIZE_LABELS: Record<string, string> = {
   "10": "10",
@@ -78,6 +79,9 @@ export interface DataTableProps<TData, TValue> {
   totalPages?: number;
   onPageChange?: (page: number) => void;
   onLimitChange?: (limit: number) => void;
+  serverSideSorting?: boolean;
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -107,27 +111,43 @@ export function DataTable<TData, TValue>({
   totalPages,
   onPageChange,
   onLimitChange,
+  serverSideSorting = false,
+  sorting: externalSorting,
+  onSortingChange: onExternalSortingChange,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [globalFilter, setGlobalFilter] = React.useState("");
+  const sorting = serverSideSorting ? (externalSorting ?? []) : internalSorting;
 
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: setSorting,
+    onSortingChange: (updater) => {
+      const nextSorting =
+        typeof updater === "function" ? updater(sorting) : updater;
+
+      if (serverSideSorting) {
+        onExternalSortingChange?.(nextSorting);
+        return;
+      }
+
+      setInternalSorting(nextSorting);
+    },
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: serverSidePagination ? undefined : getPaginationRowModel(),
+    getSortedRowModel: serverSideSorting ? undefined : getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: "includesString",
+    manualPagination: serverSidePagination,
+    manualSorting: serverSideSorting,
     state: {
       sorting,
       columnFilters,
@@ -248,15 +268,15 @@ export function DataTable<TData, TValue>({
                         colSpan={columns.length}
                         className="h-24 text-center"
                       >
-                        <div className="flex flex-col items-center justify-center gap-2 text-destructive">
-                          <span className="font-medium">Failed to load data</span>
-                          <span className="text-sm text-muted-foreground">
-                            {error instanceof Error
-                              ? error.message
-                              : typeof error === "string"
-                                ? error
-                                : "An error occurred"}
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <span className="font-medium text-destructive">
+                            Failed to load data
                           </span>
+                          <ErrorMessage
+                            error={error}
+                            fallback="An error occurred"
+                            tone="muted"
+                          />
                         </div>
                       </TableCell>
                     </TableRow>

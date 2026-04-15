@@ -2,7 +2,6 @@
 
 export type {
   LoginCredentials,
-  RegisterData,
   AuthResponse,
   TokenPayload,
   User,
@@ -14,6 +13,13 @@ export type {
   IMemberData,
   IMemberRow,
 } from './member';
+
+export type {
+  ICreateGymData,
+  IUpdateGymData,
+  IGymData,
+  IGymRow,
+} from './gym';
 
 export type {
   ICreateTrainerData,

@@ -29,6 +29,7 @@ import { useAllMembershipPlans } from "@/hooks/use-membership-plans";
 import { formatDateForInput, calculateExpirationDate } from "@/lib/helpers";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { ContentLoader } from "@/components/ui/content-loader";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 type MemberFormData = {
   name: string;
@@ -122,7 +123,7 @@ export default function AddMemberPage() {
   const onSubmit = (data: MemberFormData) => {
     const payload = {
       name: data.name.trim(),
-      email: data.email?.trim() || null,
+      email: data.email.trim(),
       phone: data.phone?.trim(),
       membershipType: data.membershipType,
       joinDate: data.joinDate,
@@ -171,11 +172,10 @@ export default function AddMemberPage() {
         showError ? (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-destructive">
-                {memberError instanceof Error
-                  ? memberError.message
-                  : "Failed to fetch member. Please try again."}
-              </p>
+              <ErrorMessage
+                error={memberError}
+                fallback="Failed to fetch member. Please try again."
+              />
               <Link href="/members">
                 <Button variant="outline" className="mt-4">
                   Back to Members
@@ -242,6 +242,7 @@ export default function AddMemberPage() {
                       </FormItem>
                     )}
                     rules={{
+                      required: "Email is required",
                       pattern: {
                         value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                         message: "Invalid email address",
@@ -422,13 +423,10 @@ export default function AddMemberPage() {
                   />
                 </div>
 
-                {submitError && (
-                  <p className="text-sm text-destructive">
-                    {submitError instanceof Error
-                      ? submitError.message
-                      : "An error occurred. Please try again."}
-                  </p>
-                )}
+                <ErrorMessage
+                  error={submitError}
+                  fallback="An error occurred. Please try again."
+                />
                 <div className="flex items-center gap-4 justify-end">
                   <Link href="/members">
                     <Button type="button" variant="outline" disabled={isSubmitting}>

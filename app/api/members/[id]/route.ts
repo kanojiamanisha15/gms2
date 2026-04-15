@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission, resolveRequestedGymScope, resolveGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { IUpdateMemberData, IMemberData, IMemberRow } from '@/types';
@@ -18,6 +19,7 @@ function mapMemberRowToResponse(row: IMemberRow): IMemberData {
     status: row.status,
     paymentStatus: row.payment_status,
     paymentAmount: parseFloat(row.payment_amount ?? '0'),
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -28,10 +30,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERS_UPDATE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const scope = resolveGymScope(authz, null);
+    if (scope.error) return scope.error;
     const { id } = await params;
     const memberId = id;
 
@@ -44,11 +48,12 @@ export async function GET(
 
     const row = await queryOne<IMemberRow>(
       `SELECT id, member_id, name, email, phone, membership_type,
-              join_date, expiry_date, status, payment_status, payment_amount,
+              join_date, expiry_date, status, payment_status, payment_amount, gym_id,
               created_at, updated_at
        FROM members
-       WHERE member_id = $1`,
-      [memberId]
+       WHERE member_id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [memberId, scope.gymId]
     );
 
     if (!row) {
@@ -76,10 +81,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERS_UPDATE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const baseScope = resolveGymScope(authz, null);
+    if (baseScope.error) return baseScope.error;
     const { id } = await params;
     const memberId = id;
 
@@ -102,6 +109,9 @@ export async function PUT(
     const status = body.status;
     const paymentStatus = body.paymentStatus;
     const paymentAmount = body.paymentAmount != null ? Number(body.paymentAmount) : undefined;
+    const writeScope = resolveRequestedGymScope(authz, body.gymId, { allowUndefined: true });
+    if (writeScope.error) return writeScope.error;
+    const gymId = writeScope.gymId;
 
     const validStatuses = ['active', 'inactive', 'expired'];
     if (status != null && !validStatuses.includes(status)) {
@@ -120,10 +130,11 @@ export async function PUT(
 
     const existing = await queryOne<IMemberRow>(
       `SELECT id, member_id, name, email, phone, membership_type,
-              join_date, expiry_date, status, payment_status, payment_amount
+              join_date, expiry_date, status, payment_status, payment_amount, gym_id
        FROM members
-       WHERE member_id = $1`,
-      [memberId]
+       WHERE member_id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [memberId, baseScope.gymId]
     );
 
     if (!existing) {
@@ -182,6 +193,11 @@ export async function PUT(
       values.push(paymentAmount);
       paramIndex++;
     }
+    if (gymId !== undefined) {
+      updates.push(`gym_id = $${paramIndex}`);
+      values.push(gymId);
+      paramIndex++;
+    }
 
     if (updates.length === 0) {
       return NextResponse.json({
@@ -198,7 +214,7 @@ export async function PUT(
       SET ${updates.join(', ')}
       WHERE member_id = $${paramIndex}
       RETURNING id, member_id, name, email, phone, membership_type,
-                join_date, expiry_date, status, payment_status, payment_amount,
+                join_date, expiry_date, status, payment_status, payment_amount, gym_id,
                 created_at, updated_at
     `;
     const row = await queryOne<IMemberRow>(updateSql, values);
@@ -243,10 +259,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.MEMBERS_DELETE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const scope = resolveGymScope(authz, null);
+    if (scope.error) return scope.error;
     const { id } = await params;
     const memberId = id;
 
@@ -258,8 +276,10 @@ export async function DELETE(
     }
 
     const existing = await queryOne<IMemberRow>(
-      `SELECT id, member_id, name FROM members WHERE member_id = $1`,
-      [memberId]
+      `SELECT id, member_id, name FROM members
+       WHERE member_id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [memberId, scope.gymId]
     );
 
     if (!existing) {
@@ -271,8 +291,10 @@ export async function DELETE(
 
     const memberName = existing.name ?? 'Member';
     await query(
-      `DELETE FROM members WHERE member_id = $1`,
-      [memberId]
+      `DELETE FROM members
+       WHERE member_id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [memberId, scope.gymId]
     );
 
     await insertNotification(

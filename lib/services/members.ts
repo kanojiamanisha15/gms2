@@ -31,11 +31,48 @@ type MemberByIdResponse = {
   error?: string;
 };
 
+export type ImportMemberRow = {
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  membershipType: string;
+  joinDate: string;
+  expiryDate: string | null;
+  status: "active" | "inactive" | "expired";
+  paymentStatus: "paid" | "unpaid";
+  paymentAmount: number;
+  gymId?: number | null;
+};
+
+export type ImportMembersResponse = {
+  success: boolean;
+  data?: {
+    totalRows: number;
+    importedCount: number;
+    failedCount: number;
+    errors: Array<{ rowNumber: number; message: string }>;
+  };
+  error?: string;
+};
+
 // GET /api/members - Get all members with pagination
 export const doGetMembers = async (params?: {
   search?: string;
   page?: number;
   limit?: number;
+  sortBy?:
+    | 'memberId'
+    | 'name'
+    | 'email'
+    | 'phone'
+    | 'membershipType'
+    | 'joinDate'
+    | 'expiryDate'
+    | 'status'
+    | 'paymentStatus'
+    | 'paymentAmount'
+    | 'gymId';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   members: IMemberData[];
   page: number;
@@ -54,6 +91,8 @@ export const doGetMembers = async (params?: {
       search: params?.search?.trim(),
       page: page.toString(),
       limit: limit.toString(),
+      sortBy: params?.sortBy,
+      sortOrder: params?.sortOrder,
     }
   );
 
@@ -82,6 +121,7 @@ export type ExpiringMember = {
   membershipType: string;
   expirationDate: string;
   daysRemaining: number;
+  gymId: number | null;
 };
 
 type ExpiringMembersResponse = {
@@ -93,12 +133,23 @@ type ExpiringMembersResponse = {
 export const doGetExpiringMembers = async (params: {
   month: number;
   year: number;
+  sortBy?:
+    | "name"
+    | "email"
+    | "phone"
+    | "membershipType"
+    | "expirationDate"
+    | "daysRemaining"
+    | "gymId";
+  sortOrder?: "asc" | "desc";
 }): Promise<ExpiringMember[]> => {
   const response = await getRequest<ExpiringMembersResponse>(
     API_ENDPOINTS.MEMBERS_EXPIRING,
     {
       month: params.month.toString(),
       year: params.year.toString(),
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder,
     }
   );
 
@@ -135,7 +186,7 @@ export const doCreateMember = async (
     API_ENDPOINTS.MEMBERS,
     {
       name: memberData.name.trim(),
-      email: memberData.email?.trim() || null,
+      email: memberData.email.trim(),
       phone: memberData.phone?.trim() || null,
       membershipType: memberData.membershipType,
       joinDate: memberData.joinDate,
@@ -166,6 +217,17 @@ export const doDeleteMember = async (
 ): Promise<{ success: boolean; error?: string }> => {
   const response = await deleteRequest<{ success: boolean; error?: string }>(
     `${API_ENDPOINTS.MEMBERS}/${memberId}`
+  );
+  return response;
+};
+
+// POST /api/members/import - Bulk import members
+export const doImportMembers = async (
+  rows: ImportMemberRow[]
+): Promise<ImportMembersResponse> => {
+  const response = await postRequest<ImportMembersResponse>(
+    API_ENDPOINTS.MEMBERS_IMPORT,
+    { rows }
   );
   return response;
 };

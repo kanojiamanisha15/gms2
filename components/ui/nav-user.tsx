@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 
 import { useLogout } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +38,7 @@ export function NavUser({
   };
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const { hasPermission } = usePermissions();
 
   const closeSidebar = () => {
     // On mobile, also close the sidebar sheet when navigating.
@@ -94,21 +97,25 @@ export function NavUser({
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup className="flex flex-col gap-2 p-2 text-sm">
-              <button onClick={closeSidebar}>
-                <Link href="/account" className="flex items-center gap-2">
-                  <UserCircle className="!size-4"/>
-                  Account
-                </Link>
-              </button>
-              <button onClick={closeSidebar}>
-                <Link href="/notifications" className="flex items-center gap-2">
-                  <BellRing className="!size-4"/>
-                  Notifications
-                </Link>
-              </button>
-            </DropdownMenuGroup>
+            {(hasPermission(PERMISSIONS.MY_ACCOUNT_VIEW) || hasPermission(PERMISSIONS.NOTIFICATIONS_READ))?<DropdownMenuSeparator />:null}
+            {(hasPermission(PERMISSIONS.MY_ACCOUNT_VIEW) || hasPermission(PERMISSIONS.NOTIFICATIONS_READ))?<DropdownMenuGroup className="flex flex-col gap-2 p-2 text-sm">
+              {hasPermission(PERMISSIONS.MY_ACCOUNT_VIEW) ? (
+                <button onClick={closeSidebar}>
+                  <Link href="/account" className="flex items-center gap-2">
+                    <UserCircle className="!size-4"/>
+                    Account
+                  </Link>
+                </button>
+              ) : null}
+              {hasPermission(PERMISSIONS.NOTIFICATIONS_READ) ? (
+                <button onClick={closeSidebar}>
+                  <Link href="/notifications" className="flex items-center gap-2">
+                    <BellRing className="!size-4"/>
+                    Notifications
+                  </Link>
+                </button>
+              ) : null}
+            </DropdownMenuGroup>:null}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleLogout}

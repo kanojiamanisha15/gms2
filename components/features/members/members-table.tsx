@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+import { type SortingState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { EditButton } from "@/components/ui/edit-button";
@@ -10,11 +12,13 @@ import { doGetMembers, doDeleteMember } from "@/lib/services/members";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useAppSelector, useMembersTableActions } from "@/lib/store";
 import { toast } from "sonner";
-import { calculateExpirationDate } from "@/lib/helpers";
 import type { IMemberData } from "@/types";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 function ActionsCell({ member }: { member: IMemberData }) {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
 
   const deleteMutation = useMutation({
     mutationFn: (memberId: string) => doDeleteMember(memberId),
@@ -44,23 +48,23 @@ function ActionsCell({ member }: { member: IMemberData }) {
 
   return (
     <div className="flex items-center gap-2">
-      <EditButton
+      {hasPermission(PERMISSIONS.MEMBERS_UPDATE) ? <EditButton
         id={member.memberId}
         editPath="/members/add-member"
         entityName="member"
-      />
-      <DeleteButton
+      /> : null}
+      {hasPermission(PERMISSIONS.MEMBERS_DELETE) ? <DeleteButton
         id={member.memberId}
         onDelete={handleDelete}
         entityName="member"
         itemName={member.name}
         isLoading={deleteMutation.isPending}
-      />
+      /> : null}
     </div>
   );
 }
 
-const columns: ColumnDef<IMemberData>[] = [
+const baseColumns: ColumnDef<IMemberData>[] = [
   {
     accessorKey: "memberId",
     header: "Member ID",
@@ -128,8 +132,8 @@ const columns: ColumnDef<IMemberData>[] = [
               {daysUntilExpiry === 0
                 ? "Expires Today"
                 : daysUntilExpiry === 1
-                ? "1 Day Left"
-                : `${daysUntilExpiry} Days Left`}
+                  ? "1 Day Left"
+                  : `${daysUntilExpiry} Days Left`}
             </Badge>
           )}
         </div>
@@ -193,34 +197,62 @@ const columns: ColumnDef<IMemberData>[] = [
       );
     },
   },
-  {
-    id: "actions",
-    header: "Actions",
-    cell: ({ row }) => {
-      const member = row.original;
-      return <ActionsCell member={member} />;
-    },
-    enableSorting: false,
-  },
 ];
 
+const gymIdColumn: ColumnDef<IMemberData> = {
+  id: "gymId",
+  accessorKey: "gymId",
+  header: "Gym ID",
+  enableSorting: true,
+  cell: ({ row }) => (
+    <div className="font-mono text-sm text-muted-foreground tabular-nums">
+      {row.original.gymId ?? "—"}
+    </div>
+  ),
+};
+
+const actionsColumn: ColumnDef<IMemberData> = {
+  id: "actions",
+  header: "Actions",
+  cell: ({ row }) => <ActionsCell member={row.original} />,
+  enableSorting: false,
+};
+
 export function MembersTable() {
-  const { setSearchInput, setPage, setLimit } = useMembersTableActions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
+  const canReadMembers = hasPermission(PERMISSIONS.MEMBERS_READ);
+  const { setSearchInput, setPage, setLimit, setSorting } = useMembersTableActions();
   const searchInput = useAppSelector((s) => s.membersTable.searchInput);
   const page = useAppSelector((s) => s.membersTable.page);
   const limit = useAppSelector((s) => s.membersTable.limit);
+  const sortBy = useAppSelector((s) => s.membersTable.sortBy);
+  const sortOrder = useAppSelector((s) => s.membersTable.sortOrder);
   const debouncedSearch = useDebounce(searchInput, 300);
+  const canShowActions =
+    hasPermission(PERMISSIONS.MEMBERS_UPDATE) || hasPermission(PERMISSIONS.MEMBERS_DELETE);
+  const sorting: SortingState = [{ id: sortBy, desc: sortOrder === "desc" }];
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["members", debouncedSearch, page, limit],
+    queryKey: ["members", debouncedSearch, page, limit, sortBy, sortOrder],
     queryFn: () =>
       doGetMembers({
         search: debouncedSearch || undefined,
         page,
         limit,
+        sortBy,
+        sortOrder,
       }),
+    enabled: canReadMembers,
   });
   const members: IMemberData[] = data?.members ?? [];
+  const columns: ColumnDef<IMemberData>[] = useMemo(() => {
+    const dataColumns: ColumnDef<IMemberData>[] = [
+      baseColumns[0],
+      ...(isSuperAdmin ? [gymIdColumn] : []),
+      ...baseColumns.slice(1),
+    ];
+    return canShowActions ? [...dataColumns, actionsColumn] : dataColumns;
+  }, [isSuperAdmin, canShowActions]);
 
   return (
     <DataTable
@@ -229,6 +261,7 @@ export function MembersTable() {
       searchPlaceholder="Search by name, email, or member ID..."
       addButtonLabel="Add Member"
       addButtonHref="/members/add-member"
+      showAddButton={hasPermission(PERMISSIONS.MEMBERS_ADD)}
       entityName="member"
       serverSideSearch
       searchValue={searchInput}
@@ -237,12 +270,33 @@ export function MembersTable() {
       isError={isError}
       error={error}
       serverSidePagination
+      serverSideSorting
       page={page}
       limit={limit}
       total={data?.total}
       totalPages={data?.totalPages}
       onPageChange={setPage}
       onLimitChange={setLimit}
+      sorting={sorting}
+      onSortingChange={(next) => {
+        const first = next[0];
+        setSorting(
+          first &&
+            (first.id === "memberId" ||
+              first.id === "name" ||
+              first.id === "email" ||
+              first.id === "phone" ||
+              first.id === "membershipType" ||
+              first.id === "joinDate" ||
+              first.id === "expiryDate" ||
+              first.id === "status" ||
+              first.id === "paymentStatus" ||
+              first.id === "paymentAmount" ||
+              first.id === "gymId")
+            ? { id: first.id, desc: !!first.desc }
+            : null
+        );
+      }}
     />
   );
 }

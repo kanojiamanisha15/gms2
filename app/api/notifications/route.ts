@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 
 export type NotificationRow = {
@@ -27,7 +28,7 @@ function mapRowToNotification(row: NotificationRow) {
 }
 
 /** Ensure overdue notifications exist - creates them if not already present in last 24h */
-async function ensureOverdueNotifications() {
+async function ensureOverdueNotifications(gymId: number | null) {
   const today = new Date().toISOString().split('T')[0];
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -35,19 +36,23 @@ async function ensureOverdueNotifications() {
   const overduePayments = await query<{ name: string; member_id: string; payment_amount: string }>(
     `SELECT name, member_id, payment_amount
      FROM members
-     WHERE payment_status = 'unpaid' AND expiry_date IS NOT NULL AND expiry_date < $1::date`,
-    [today]
+     WHERE payment_status = 'unpaid' AND expiry_date IS NOT NULL AND expiry_date < $1::date
+       AND ($2::int IS NULL OR gym_id = $2)`,
+    [today, gymId]
   );
   const recentPaymentNotifs = await query<{ message: string }>(
-    `SELECT message FROM notifications WHERE title = 'Payment Overdue' AND created_at >= $1::timestamptz`,
-    [since]
+    `SELECT message FROM notifications
+     WHERE title = 'Payment Overdue'
+       AND created_at >= $1::timestamptz
+       AND ($2::int IS NULL OR gym_id = $2)`,
+    [since, gymId]
   );
   const recentPaymentMessages = new Set(recentPaymentNotifs.map((r) => r.message));
   for (const m of overduePayments) {
     const amount = parseFloat(m.payment_amount ?? '0');
     const msg = `Payment of Rs.${amount.toFixed(2)} from ${m.name} (${m.member_id}) is overdue.`;
     if (!recentPaymentMessages.has(msg)) {
-      await insertNotification('Payment Overdue', msg, 'error');
+      await insertNotification('Payment Overdue', msg, 'error', gymId);
       recentPaymentMessages.add(msg);
     }
   }
@@ -56,12 +61,16 @@ async function ensureOverdueNotifications() {
   const overdueExpenses = await query<{ id: number; description: string | null; amount: string; date: string }>(
     `SELECT id, description, amount, date
      FROM expenses
-     WHERE status = 'overdue' OR (date < $1::date AND status = 'pending')`,
-    [today]
+     WHERE (status = 'overdue' OR (date < $1::date AND status = 'pending'))
+       AND ($2::int IS NULL OR gym_id = $2)`,
+    [today, gymId]
   );
   const recentExpenseNotifs = await query<{ message: string }>(
-    `SELECT message FROM notifications WHERE title = 'Expense Overdue' AND created_at >= $1::timestamptz`,
-    [since]
+    `SELECT message FROM notifications
+     WHERE title = 'Expense Overdue'
+       AND created_at >= $1::timestamptz
+       AND ($2::int IS NULL OR gym_id = $2)`,
+    [since, gymId]
   );
   const recentExpenseMessages = new Set(recentExpenseNotifs.map((r) => r.message));
   for (const e of overdueExpenses) {
@@ -69,7 +78,7 @@ async function ensureOverdueNotifications() {
     const desc = e.description || 'Unspecified expense';
     const msg = `${desc} (Rs.${amount.toFixed(2)}) was due on ${e.date}.`;
     if (!recentExpenseMessages.has(msg)) {
-      await insertNotification('Expense Overdue', msg, 'warning');
+      await insertNotification('Expense Overdue', msg, 'warning', gymId);
       recentExpenseMessages.add(msg);
     }
   }
@@ -77,17 +86,22 @@ async function ensureOverdueNotifications() {
 
 /** GET /api/notifications - List notifications (creates overdue ones first) */
 export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.NOTIFICATIONS_READ);
+  if ('error' in authz) return authz.error;
 
   try {
-    await ensureOverdueNotifications();
+    const { searchParams } = new URL(request.url);
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
+    await ensureOverdueNotifications(scope.gymId ?? null);
 
     const rows = await query<NotificationRow>(
       `SELECT id, title, message, type, read, created_at
        FROM notifications
+       WHERE ($1::int IS NULL OR gym_id = $1)
        ORDER BY created_at DESC
-       LIMIT 200`
+       LIMIT 200`,
+      [scope.gymId ?? null]
     );
 
     const notifications = rows.map(mapRowToNotification);

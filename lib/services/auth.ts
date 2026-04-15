@@ -39,32 +39,32 @@ export function verifyToken(token: string): TokenPayload | null {
   }
 }
 
-export type AuthResult = 
+export type AuthResult =
   | { error: NextResponse; payload?: never }
   | { payload: TokenPayload; error?: never };
 
 /** Require authentication for API routes. Returns error response or payload. */
 export function requireAuth(request: NextRequest): AuthResult {
   const token = request.cookies.get('auth_token')?.value;
-  
+
   if (!token) {
-    return { 
+    return {
       error: NextResponse.json(
-        { success: false, error: 'No token found' }, 
+        { success: false, error: 'No token found' },
         { status: 401 }
-      ) 
+      )
     };
   }
-  
+
   const payload = verifyToken(token);
   if (!payload) {
-    return { 
+    return {
       error: NextResponse.json(
-        { success: false, error: 'Invalid or expired token' }, 
+        { success: false, error: 'Invalid or expired token' },
         { status: 401 }
-      ) 
+      )
     };
   }
-  
+
   return { payload };
 }

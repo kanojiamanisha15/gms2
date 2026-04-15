@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ErrorMessage } from "@/components/ui/error-message";
 import {
   Bell,
   Check,
@@ -30,6 +31,8 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContentLoader } from "@/components/ui/content-loader";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 dayjs.extend(relativeTime);
 
@@ -109,6 +112,7 @@ function NotificationRowSkeleton({
 }
 
 export default function NotificationsPage() {
+  const { hasPermission } = usePermissions();
   const { data: notifications = [], isLoading, isError, error } = useNotifications();
   const {
     mutateAsync: markNotificationRead,
@@ -156,7 +160,7 @@ export default function NotificationsPage() {
       title="Notifications"
       description="Stay updated with important alerts and updates"
       headerAction={
-        unreadCount > 0 ? (
+        hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_ALL_AS_READ) && unreadCount > 0 ? (
           <Button
             variant="outline"
             onClick={() => markAllNotificationsRead()}
@@ -173,17 +177,17 @@ export default function NotificationsPage() {
       }
     >
       <div className="px-4 lg:px-6 space-y-6">
-        {actionError ? (
-          <p className="text-sm text-destructive">
-            {actionError instanceof Error ? actionError.message : "Action failed"}
-          </p>
-        ) : null}
+        <ErrorMessage
+          error={actionError}
+          fallback="Action failed"
+        />
         {isLoading ? (
           <ContentLoader message="Loading notifications..." />
         ) : isError ? (
-          <p className="text-sm text-destructive">
-            {error instanceof Error ? error.message : "Failed to load notifications"}
-          </p>
+          <ErrorMessage
+            error={error}
+            fallback="Failed to load notifications"
+          />
         ) :
           (<>
               <Card>
@@ -235,24 +239,30 @@ export default function NotificationsPage() {
                               <span className="text-xs text-muted-foreground">
                                 {dayjs(notification.createdAt).fromNow()}
                               </span>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  className=" !sm:px-3 !px-0 mr-2"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => markNotificationRead(notification.id)}
-                                >
-                                  <Check className="h-4 w-4 mr-1" />
-                                  Mark as read
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteNotificationById(notification.id)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_AS_READ) || hasPermission(PERMISSIONS.NOTIFICATIONS_DELETE) ? (
+                                <div className="flex items-center gap-2">
+                                  {hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_AS_READ) ? (
+                                    <Button
+                                      className=" !sm:px-3 !px-0 mr-2"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => markNotificationRead(notification.id)}
+                                    >
+                                      <Check className="h-4 w-4 mr-1" />
+                                      Mark as read
+                                    </Button>
+                                  ) : null}
+                                  {hasPermission(PERMISSIONS.NOTIFICATIONS_DELETE) ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => deleteNotificationById(notification.id)}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         </div>
@@ -311,13 +321,15 @@ export default function NotificationsPage() {
                                 <span className="text-xs text-muted-foreground">
                                   {dayjs(notification.createdAt).fromNow()}
                                 </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteNotificationById(notification.id)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
+                                {hasPermission(PERMISSIONS.NOTIFICATIONS_DELETE) ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteNotificationById(notification.id)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                ) : null}
                               </div>
                             </div>
                           </div>

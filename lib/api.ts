@@ -13,17 +13,8 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
   withCredentials: true, // Automatically send cookies (auth_token)
+  // sends cookies on cross-origin requests (important for cookie-based auth).
 });
-
-// Add request interceptor
-api.interceptors.request.use(
-  (config) => {
-    // Cookies are sent automatically with withCredentials: true
-    // No need to manually add Authorization header if using cookies
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 // Add response interceptor
 api.interceptors.response.use(
@@ -104,6 +95,43 @@ export const putRequest = async <T, D = unknown>(
 ): Promise<T> => {
   try {
     const response = await api.put<T>(endpoint, data);
+    return response.data;
+  } catch (error) {
+    if (
+      axios.isAxiosError(error) &&
+      error.response &&
+      error.response.data &&
+      typeof error.response.data === "object" &&
+      "message" in error.response.data
+    ) {
+      throw new Error(
+        (error.response.data as { message: string }).message || "Failed to update data"
+      );
+    } else if (
+      axios.isAxiosError(error) &&
+      error.response &&
+      error.response.data &&
+      typeof error.response.data === "object" &&
+      "error" in error.response.data
+    ) {
+      throw new Error(
+        (error.response.data as { error: string }).error || "Failed to update data"
+      );
+    } else {
+      throw new Error("Failed to update data");
+    }
+  }
+};
+
+/**
+ * Generic PATCH request
+ */
+export const patchRequest = async <T, D = unknown>(
+  endpoint: string,
+  data: D
+): Promise<T> => {
+  try {
+    const response = await api.patch<T>(endpoint, data);
     return response.data;
   } catch (error) {
     if (

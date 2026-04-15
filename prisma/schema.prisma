@@ -13,15 +13,39 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("user")
+  id                  Int      @id @default(autoincrement())
+  name                String
+  email               String   @unique
+  password            String
+  role                String   @default("user")
+  permissions         String[] @default([])
+  gymId               Int?     @map("gym_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @map("updated_at")
+
+  gym Gym? @relation(fields: [gymId], references: [gymId])
+
+  @@map("users")
+}
+
+model Gym {
+  gymId     Int      @id @default(autoincrement()) @map("gym_id")
+  gymName   String   @map("gym_name")
+  address   String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @map("updated_at")
 
-  @@map("users")
+  users           User[]
+  members         Member[]
+  trainers        Trainer[]
+  membershipPlans MembershipPlan[]
+  expenses        Expense[]
+  payments        Payment[]
+  attendances     Attendance[]
+  notifications   Notification[]
+
+  @@unique([gymName, address], map: "gyms_gym_name_address_key")
+  @@map("gyms")
 }
 
 model Member {
@@ -36,10 +60,12 @@ model Member {
   status         String    @default("active")
   paymentStatus  String    @default("unpaid") @map("payment_status")
   paymentAmount  Decimal   @default(0.0) @db.Decimal(10, 2) @map("payment_amount")
+  gymId          Int?      @map("gym_id")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @map("updated_at")
 
   payments Payment[]
+  gym      Gym?     @relation(fields: [gymId], references: [gymId])
 
   @@map("members")
 }
@@ -51,8 +77,10 @@ model MembershipPlan {
   durationDays String   @map("duration_days")
   features     String?
   status       String   @default("active")
+  gymId        Int?     @map("gym_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @map("updated_at")
+  gym          Gym?     @relation(fields: [gymId], references: [gymId])
 
   @@map("membership_plans")
 }
@@ -60,6 +88,7 @@ model MembershipPlan {
 model Payment {
   id            Int      @id @default(autoincrement())
   memberId      Int?     @map("member_id")
+  gymId         Int?     @map("gym_id")
   amount        Decimal  @db.Decimal(10, 2)
   paymentDate   DateTime @default(now()) @map("payment_date")
   paymentMethod String?  @map("payment_method")
@@ -67,6 +96,7 @@ model Payment {
   createdAt     DateTime @default(now()) @map("created_at")
 
   member Member? @relation(fields: [memberId], references: [id])
+  gym    Gym?    @relation(fields: [gymId], references: [gymId])
 
   @@map("payments")
 }
@@ -79,8 +109,10 @@ model Expense {
   date        DateTime
   status      String   @default("pending")
   vendor      String?
+  gymId       Int?     @map("gym_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @default(now()) @map("updated_at")
+  gym         Gym?     @relation(fields: [gymId], references: [gymId])
 
   @@map("expenses")
 }
@@ -89,6 +121,7 @@ model Attendance {
   id           Int      @id @default(autoincrement())
   memberId     String   @map("member_id")
   memberName   String   @map("member_name")
+  gymId        Int?     @map("gym_id")
   checkInDate  DateTime @map("check_in_date")
   checkInTime  String   @map("check_in_time")
   checkOutDate DateTime? @map("check_out_date")
@@ -97,6 +130,7 @@ model Attendance {
   duration     String?  // stored as VARCHAR(20)
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @map("updated_at")
+  gym          Gym?     @relation(fields: [gymId], references: [gymId])
 
   @@map("attendance")
 }
@@ -109,8 +143,10 @@ model Trainer {
   role      String
   hireDate  DateTime @map("hire_date")
   status    String   @default("active")
+  gymId     Int?     @map("gym_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @map("updated_at")
+  gym       Gym?     @relation(fields: [gymId], references: [gymId])
 
   @@map("trainers")
 }
@@ -120,8 +156,10 @@ model Notification {
   title     String
   message   String
   type      String
+  gymId     Int?     @map("gym_id")
   read      Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
+  gym       Gym?     @relation(fields: [gymId], references: [gymId])
 
   @@map("notifications")
 }

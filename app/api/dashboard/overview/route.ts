@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 
 type TimePeriod = 'monthly' | 'quarterly' | 'half-yearly' | 'yearly';
 
@@ -80,11 +81,13 @@ function getPreviousPeriodRange(
 
 /** GET /api/dashboard/overview - Get overview metrics. Query: period (monthly|quarterly|half-yearly|yearly) */
 export async function GET(request: NextRequest) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.DASHBOARD_READ);
+  if ('error' in authz) return authz.error;
 
   try {
     const { searchParams } = new URL(request.url);
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
     const periodParam = searchParams.get('period');
     const period: TimePeriod =
       periodParam === 'quarterly' ||
@@ -101,16 +104,18 @@ export async function GET(request: NextRequest) {
     const revenueRows = await query<{ total: string }>(
       `SELECT COALESCE(SUM(payment_amount::numeric), 0) as total
        FROM members
-       WHERE join_date >= $1::date AND join_date <= $2::date`,
-      [currStart, currEnd]
+       WHERE join_date >= $1::date AND join_date <= $2::date
+         AND ($3::int IS NULL OR gym_id = $3)`,
+      [currStart, currEnd, scope.gymId]
     );
     const revenue = parseFloat(revenueRows[0]?.total ?? '0');
 
     const prevRevenueRows = await query<{ total: string }>(
       `SELECT COALESCE(SUM(payment_amount::numeric), 0) as total
        FROM members
-       WHERE join_date >= $1::date AND join_date <= $2::date`,
-      [prevStart, prevEnd]
+       WHERE join_date >= $1::date AND join_date <= $2::date
+         AND ($3::int IS NULL OR gym_id = $3)`,
+      [prevStart, prevEnd, scope.gymId]
     );
     const prevRevenue = parseFloat(prevRevenueRows[0]?.total ?? '0');
 
@@ -118,22 +123,28 @@ export async function GET(request: NextRequest) {
     const customersRows = await query<{ count: string }>(
       `SELECT COUNT(*) as count
        FROM members
-       WHERE join_date >= $1::date AND join_date <= $2::date`,
-      [currStart, currEnd]
+       WHERE join_date >= $1::date AND join_date <= $2::date
+         AND ($3::int IS NULL OR gym_id = $3)`,
+      [currStart, currEnd, scope.gymId]
     );
     const newCustomers = parseInt(customersRows[0]?.count ?? '0', 10);
 
     const prevCustomersRows = await query<{ count: string }>(
       `SELECT COUNT(*) as count
        FROM members
-       WHERE join_date >= $1::date AND join_date <= $2::date`,
-      [prevStart, prevEnd]
+       WHERE join_date >= $1::date AND join_date <= $2::date
+         AND ($3::int IS NULL OR gym_id = $3)`,
+      [prevStart, prevEnd, scope.gymId]
     );
     const prevCustomers = parseInt(prevCustomersRows[0]?.count ?? '0', 10);
 
     // Active Accounts: COUNT of members with status='active'
     const activeRows = await query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM members WHERE status = 'active'`
+      `SELECT COUNT(*) as count
+       FROM members
+       WHERE status = 'active'
+         AND ($1::int IS NULL OR gym_id = $1)`,
+      [scope.gymId]
     );
     const activeAccounts = parseInt(activeRows[0]?.count ?? '0', 10);
 
@@ -142,8 +153,9 @@ export async function GET(request: NextRequest) {
       `SELECT COUNT(*) as count
        FROM members
        WHERE join_date <= $1::date
-         AND (expiry_date IS NULL OR expiry_date >= $1::date)`,
-      [prevEnd]
+         AND (expiry_date IS NULL OR expiry_date >= $1::date)
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [prevEnd, scope.gymId]
     );
     const prevActiveAccounts = parseInt(prevActiveRows[0]?.count ?? '0', 10);
 
@@ -151,16 +163,18 @@ export async function GET(request: NextRequest) {
     const expensesRows = await query<{ total: string }>(
       `SELECT COALESCE(SUM(amount::numeric), 0) as total
        FROM expenses
-       WHERE date >= $1::date AND date <= $2::date`,
-      [currStart, currEnd]
+       WHERE date >= $1::date AND date <= $2::date
+         AND ($3::int IS NULL OR gym_id = $3)`,
+      [currStart, currEnd, scope.gymId]
     );
     const expenses = parseFloat(expensesRows[0]?.total ?? '0');
 
     const prevExpensesRows = await query<{ total: string }>(
       `SELECT COALESCE(SUM(amount::numeric), 0) as total
        FROM expenses
-       WHERE date >= $1::date AND date <= $2::date`,
-      [prevStart, prevEnd]
+       WHERE date >= $1::date AND date <= $2::date
+         AND ($3::int IS NULL OR gym_id = $3)`,
+      [prevStart, prevEnd, scope.gymId]
     );
     const prevExpenses = parseFloat(prevExpensesRows[0]?.total ?? '0');
 

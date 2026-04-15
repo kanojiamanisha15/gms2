@@ -6,10 +6,11 @@ import {
   doDeleteNotification,
 } from "@/lib/services/notifications";
 
-export function useNotifications() {
+export function useNotifications(enabled = true) {
   return useQuery({
     queryKey: ["notifications"],
     queryFn: () => doGetNotifications(),
+    enabled,
   });
 }
 

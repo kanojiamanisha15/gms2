@@ -5,13 +5,6 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  role?: string;
-}
-
 export interface AuthResponse {
   success: boolean;
   data?: {
@@ -21,6 +14,7 @@ export interface AuthResponse {
       email: string;
       name: string;
       role?: string;
+      gymId?: number;
     };
   };
   error?: string;
@@ -30,6 +24,7 @@ export interface TokenPayload {
   userId: number;
   email: string;
   role?: string;
+  gymId?: number;
 }
 
 export interface User {
@@ -37,6 +32,9 @@ export interface User {
   name: string;
   email: string;
   role?: string;
+  permissions?: string[];
+  gymId?: number;
+  gymName?: string | null;
   created_at: string;
   updated_at: string;
 }

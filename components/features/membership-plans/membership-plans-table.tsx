@@ -1,6 +1,7 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
+import { ColumnDef, type SortingState } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import { EditButton } from "@/components/ui/edit-button";
@@ -14,9 +15,12 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useAppSelector, useMembershipPlansTableActions } from "@/lib/store";
 import { toast } from "sonner";
 import type { IMembershipPlanData } from "@/types";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 function ActionsCell({ plan }: { plan: IMembershipPlanData }) {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
   const deleteMutation = useMutation({
     mutationFn: (id: number | string) => doDeleteMembershipPlan(id),
     onSuccess: (response) => {
@@ -43,23 +47,35 @@ function ActionsCell({ plan }: { plan: IMembershipPlanData }) {
 
   return (
     <div className="flex items-center gap-2">
-      <EditButton
+      {hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_UPDATE) ? <EditButton
         id={String(plan.id)}
         editPath="/membership-plans/add-plan"
         entityName="membership plan"
-      />
-      <DeleteButton
+      /> : null}
+      {hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_DELETE) ? <DeleteButton
         id={String(plan.id)}
         onDelete={handleDelete}
         entityName="membership plan"
         itemName={plan.name}
         isLoading={deleteMutation.isPending}
-      />
+      /> : null}
     </div>
   );
 }
 
-const columns: ColumnDef<IMembershipPlanData>[] = [
+const gymIdColumn: ColumnDef<IMembershipPlanData> = {
+  id: "gymId",
+  accessorKey: "gymId",
+  header: "Gym ID",
+  enableSorting: true,
+  cell: ({ row }) => (
+    <div className="font-mono text-sm text-muted-foreground tabular-nums">
+      {row.original.gymId ?? "—"}
+    </div>
+  ),
+};
+
+const planDataColumns: ColumnDef<IMembershipPlanData>[] = [
   {
     accessorKey: "name",
     header: "Plan Name",
@@ -112,42 +128,61 @@ const columns: ColumnDef<IMembershipPlanData>[] = [
       );
     },
   },
-  {
-    id: "actions",
-    header: "Actions",
-    cell: ({ row }) => {
-      const plan = row.original;
-      return <ActionsCell plan={plan} />;
-    },
-    enableSorting: false,
-  },
 ];
 
+const planActionsColumn: ColumnDef<IMembershipPlanData> = {
+  id: "actions",
+  header: "Actions",
+  cell: ({ row }) => <ActionsCell plan={row.original} />,
+  enableSorting: false,
+};
+
 export function MembershipPlansTable() {
-  const { setSearchInput, setPage, setLimit } = useMembershipPlansTableActions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
+  const canReadMembershipPlans = hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_READ);
+  const canShowActions =
+    hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_UPDATE) ||
+    hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_DELETE);
+  const { setSearchInput, setPage, setLimit, setSorting } = useMembershipPlansTableActions();
   const searchInput = useAppSelector((s) => s.membershipPlansTable.searchInput);
   const page = useAppSelector((s) => s.membershipPlansTable.page);
   const limit = useAppSelector((s) => s.membershipPlansTable.limit);
+  const sortBy = useAppSelector((s) => s.membershipPlansTable.sortBy);
+  const sortOrder = useAppSelector((s) => s.membershipPlansTable.sortOrder);
+  const sorting: SortingState = [{ id: sortBy, desc: sortOrder === "desc" }];
   const debouncedSearch = useDebounce(searchInput, 300);
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["membership-plans", debouncedSearch, page, limit],
+    queryKey: ["membership-plans", debouncedSearch, page, limit, sortBy, sortOrder],
     queryFn: () =>
       doGetMembershipPlans({
         search: debouncedSearch || undefined,
         page,
         limit,
+        sortBy,
+        sortOrder,
       }),
+    enabled: canReadMembershipPlans,
   });
   const plans: IMembershipPlanData[] = data?.plans ?? [];
 
+  const displayColumns: ColumnDef<IMembershipPlanData>[] = useMemo(() => {
+    const dataColumns: ColumnDef<IMembershipPlanData>[] = [
+      planDataColumns[0],
+      ...(isSuperAdmin ? [gymIdColumn] : []),
+      ...planDataColumns.slice(1),
+    ];
+    return canShowActions ? [...dataColumns, planActionsColumn] : dataColumns;
+  }, [isSuperAdmin, canShowActions]);
+
   return (
     <DataTable
-      columns={columns}
+      columns={displayColumns}
       data={plans}
       searchPlaceholder="Search membership plans..."
       addButtonLabel="Add Membership Plan"
       addButtonHref="/membership-plans/add-plan"
+      showAddButton={hasPermission(PERMISSIONS.MEMBERSHIP_PLANS_ADD)}
       entityName="membership plan"
       serverSideSearch
       searchValue={searchInput}
@@ -156,12 +191,28 @@ export function MembershipPlansTable() {
       isError={isError}
       error={error}
       serverSidePagination
+      serverSideSorting
       page={page}
       limit={limit}
       total={data?.total}
       totalPages={data?.totalPages}
       onPageChange={setPage}
       onLimitChange={setLimit}
+      sorting={sorting}
+      onSortingChange={(next) => {
+        const first = next[0];
+        setSorting(
+          first &&
+            (first.id === "name" ||
+              first.id === "price" ||
+              first.id === "duration" ||
+              first.id === "features" ||
+              first.id === "status" ||
+              first.id === "gymId")
+            ? { id: first.id, desc: !!first.desc }
+            : null
+        );
+      }}
     />
   );
 }

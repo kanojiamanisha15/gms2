@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission, resolveRequestedGymScope, resolveGymScope } from '@/lib/services/authorization';
 import { insertNotification } from '@/lib/db/notifications';
 import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { IUpdateTrainerData, ITrainerData, ITrainerRow } from '@/types';
@@ -14,6 +15,7 @@ function mapTrainerRowToResponse(row: ITrainerRow): ITrainerData {
     role: row.role,
     hireDate: row.hire_date,
     status: row.status,
+    gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
@@ -24,10 +26,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.TRAINERS_UPDATE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const scope = resolveGymScope(authz, null);
+    if (scope.error) return scope.error;
     const { id } = await params;
     const trainerId = parseInt(id, 10);
 
@@ -40,10 +44,11 @@ export async function GET(
 
     const row = await queryOne<ITrainerRow>(
       `SELECT id, name, email, phone, role, hire_date, status,
-              created_at, updated_at
+              gym_id, created_at, updated_at
        FROM trainers
-       WHERE id = $1`,
-      [trainerId]
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [trainerId, scope.gymId]
     );
 
     if (!row) {
@@ -71,10 +76,12 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.TRAINERS_UPDATE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const baseScope = resolveGymScope(authz, null);
+    if (baseScope.error) return baseScope.error;
     const { id } = await params;
     const trainerId = parseInt(id, 10);
 
@@ -96,6 +103,9 @@ export async function PUT(
     const role = body.role;
     const hireDate = body.hireDate != null ? String(body.hireDate).trim() : undefined;
     const status = body.status;
+    const writeScope = resolveRequestedGymScope(authz, body.gymId, { allowUndefined: true });
+    if (writeScope.error) return writeScope.error;
+    const gymId = writeScope.gymId;
 
     const validRoles = ['Trainer', 'Staff'];
     if (role != null && !validRoles.includes(role)) {
@@ -113,10 +123,11 @@ export async function PUT(
     }
 
     const existing = await queryOne<ITrainerRow>(
-      `SELECT id, name, email, phone, role, hire_date, status
+      `SELECT id, name, email, phone, role, hire_date, status, gym_id
        FROM trainers
-       WHERE id = $1`,
-      [trainerId]
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [trainerId, baseScope.gymId]
     );
 
     if (!existing) {
@@ -160,6 +171,11 @@ export async function PUT(
       values.push(status);
       paramIndex++;
     }
+    if (gymId !== undefined) {
+      updates.push(`gym_id = $${paramIndex}`);
+      values.push(gymId);
+      paramIndex++;
+    }
 
     if (updates.length === 0) {
       return NextResponse.json({
@@ -176,7 +192,7 @@ export async function PUT(
       SET ${updates.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING id, name, email, phone, role, hire_date, status,
-                created_at, updated_at
+                gym_id, created_at, updated_at
     `;
     const row = await queryOne<ITrainerRow>(updateSql, values);
 
@@ -211,10 +227,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.TRAINERS_DELETE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const scope = resolveGymScope(authz, null);
+    if (scope.error) return scope.error;
     const { id } = await params;
     const trainerId = parseInt(id, 10);
 
@@ -226,8 +244,10 @@ export async function DELETE(
     }
 
     const existing = await queryOne<ITrainerRow>(
-      `SELECT id, name, role FROM trainers WHERE id = $1`,
-      [trainerId]
+      `SELECT id, name, role FROM trainers
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [trainerId, scope.gymId]
     );
 
     if (!existing) {
@@ -237,7 +257,12 @@ export async function DELETE(
       );
     }
 
-    await query(`DELETE FROM trainers WHERE id = $1`, [trainerId]);
+    await query(
+      `DELETE FROM trainers
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [trainerId, scope.gymId]
+    );
 
     await insertNotification(
       'Trainer Deleted',

@@ -7,6 +7,7 @@ interface PageContentProps {
   children?: ReactNode;
   className?: string;
   headerAction?: ReactNode;
+  headerBottomAction?: ReactNode;
 }
 
 export function PageContent({
@@ -15,6 +16,7 @@ export function PageContent({
   children,
   className,
   headerAction,
+  headerBottomAction,
 }: PageContentProps) {
   return (
     <div className="flex flex-1 flex-col">
@@ -26,12 +28,17 @@ export function PageContent({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
               <div>
                 <h1 className="text-2xl font-semibold">{title}</h1>
-                {description && (
+                {description ? (
                   <p className="text-muted-foreground">{description}</p>
-                )}
+                ) : null}
               </div>
               {headerAction && <div className="shrink-0">{headerAction}</div>}
             </div>
+            {headerBottomAction ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {headerBottomAction}
+              </div>
+            ) : null}
           </div>
           {children}
         </div>

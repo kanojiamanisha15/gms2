@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query, queryOne } from '@/lib/db/db';
-import { requireAuth } from '@/lib/services/auth';
+import { PERMISSIONS } from '@/lib/constants/permissions';
+import { requirePermission, resolveRequestedGymScope } from '@/lib/services/authorization';
 
 export type NotificationRow = {
   id: number;
@@ -16,20 +17,33 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.NOTIFICATIONS_MARK_AS_READ);
+  if ('error' in authz) return authz.error;
 
   try {
+    const { searchParams } = new URL(request.url);
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
+
     const { id } = await params;
     const notifId = parseInt(id, 10);
     if (!id || isNaN(notifId)) {
       return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400 });
     }
 
-    await query(`UPDATE notifications SET read = true WHERE id = $1`, [notifId]);
+    await query(
+      `UPDATE notifications
+       SET read = true
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [notifId, scope.gymId]
+    );
     const row = await queryOne<NotificationRow>(
-      `SELECT id, title, message, type, read, created_at FROM notifications WHERE id = $1`,
-      [notifId]
+      `SELECT id, title, message, type, read, created_at
+       FROM notifications
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [notifId, scope.gymId]
     );
     if (!row) {
       return NextResponse.json({ success: false, error: 'Notification not found' }, { status: 404 });
@@ -62,10 +76,14 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAuth(request);
-  if (auth.error) return auth.error;
+  const authz = await requirePermission(request, PERMISSIONS.NOTIFICATIONS_DELETE);
+  if ('error' in authz) return authz.error;
 
   try {
+    const { searchParams } = new URL(request.url);
+    const scope = resolveRequestedGymScope(authz, searchParams.get('gymId'));
+    if (scope.error) return scope.error;
+
     const { id } = await params;
     const notifId = parseInt(id, 10);
     if (!id || isNaN(notifId)) {
@@ -73,8 +91,11 @@ export async function DELETE(
     }
 
     const existing = await queryOne<{ id: number; title: string; read: boolean }>(
-      `SELECT id, title, read FROM notifications WHERE id = $1`,
-      [notifId]
+      `SELECT id, title, read
+       FROM notifications
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [notifId, scope.gymId]
     );
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Notification not found' }, { status: 404 });
@@ -86,14 +107,25 @@ export async function DELETE(
     const isOverdueNotification =
       existing.title === 'Payment Overdue' || existing.title === 'Expense Overdue';
     if (isOverdueNotification && !existing.read) {
-      await query(`UPDATE notifications SET read = true WHERE id = $1`, [notifId]);
+      await query(
+        `UPDATE notifications
+         SET read = true
+         WHERE id = $1
+           AND ($2::int IS NULL OR gym_id = $2)`,
+        [notifId, scope.gymId]
+      );
       return NextResponse.json({
         success: true,
         data: { message: 'Notification dismissed' },
       });
     }
 
-    await query(`DELETE FROM notifications WHERE id = $1`, [notifId]);
+    await query(
+      `DELETE FROM notifications
+       WHERE id = $1
+         AND ($2::int IS NULL OR gym_id = $2)`,
+      [notifId, scope.gymId]
+    );
     return NextResponse.json({
       success: true,
       data: { message: 'Notification deleted' },

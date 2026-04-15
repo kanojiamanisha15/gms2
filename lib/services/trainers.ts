@@ -31,11 +31,23 @@ type TrainerByIdResponse = {
   error?: string;
 };
 
+export type ImportTrainerRow = {
+  name: string;
+  email: string;
+  phone: string;
+  role: "Trainer" | "Staff";
+  hireDate: string;
+  status: "active" | "inactive";
+  gymId?: number | null;
+};
+
 // GET /api/trainers - Get all trainers with pagination
 export const doGetTrainers = async (params?: {
   search?: string;
   page?: number;
   limit?: number;
+  sortBy?: 'name' | 'email' | 'phone' | 'role' | 'hireDate' | 'status' | 'gymId';
+  sortOrder?: 'asc' | 'desc';
 }): Promise<{
   trainers: ITrainerData[];
   page: number;
@@ -54,6 +66,8 @@ export const doGetTrainers = async (params?: {
       search: params?.search?.trim(),
       page: page.toString(),
       limit: limit.toString(),
+      sortBy: params?.sortBy,
+      sortOrder: params?.sortOrder,
     }
   );
 
@@ -132,4 +146,19 @@ export const doDeleteTrainer = async (
     `${API_ENDPOINTS.TRAINERS}/${id}`
   );
   return response;
+};
+
+export const doImportTrainers = async (
+  rows: ImportTrainerRow[]
+): Promise<{
+  success: boolean;
+  data?: {
+    totalRows: number;
+    importedCount: number;
+    failedCount: number;
+    errors: Array<{ rowNumber: number; message: string }>;
+  };
+  error?: string;
+}> => {
+  return postRequest(API_ENDPOINTS.TRAINERS_IMPORT, { rows });
 };

@@ -19,27 +19,41 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from "@/hooks/use-notifications";
+import { useCurrentUser } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { ErrorMessage } from "@/components/ui/error-message";
 
 dayjs.extend(relativeTime);
 
 export function SiteHeader() {
-  const { data: notifications = [], isLoading, isError } = useNotifications();
+  const { data: currentUser } = useCurrentUser();
+  const { hasPermission } = usePermissions();
+  const canReadNotifications = hasPermission(PERMISSIONS.NOTIFICATIONS_READ);
+  const {
+    data: notifications = [],
+    isLoading,
+    isError,
+    error: notificationsError,
+  } = useNotifications(canReadNotifications);
   const markReadMutation = useMarkNotificationRead();
   const markAllReadMutation = useMarkAllNotificationsRead();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const recentNotifications = notifications.slice(0, 3);
+  const gymName = currentUser?.gymName?.trim();
+  const showGymWelcome = Boolean(currentUser?.gymId && gymName);
 
   const handleNotificationClick = (id: string, read: boolean) => {
-    if (!read) {
+    if (!read && hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_AS_READ)) {
       markReadMutation.mutate(id);
     }
   };
 
   const handleMarkAllRead = () => {
-    if (unreadCount > 0) {
+    if (unreadCount > 0 && hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_ALL_AS_READ)) {
       markAllReadMutation.mutate();
     }
   };
@@ -52,9 +66,17 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
+        {showGymWelcome ? (
+          <div className="hidden md:flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1">
+            <span className="h-2 w-2 rounded-full bg-primary" aria-hidden />
+            <p className="text-xs text-muted-foreground">
+              Welcome to <span className="font-semibold text-foreground">{gymName}</span>
+            </p>
+          </div>
+        ) : null}
         <div className="ml-auto flex items-center gap-2">
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            {canReadNotifications ? <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
@@ -68,11 +90,11 @@ export function SiteHeader() {
                   </span>
                 )}
               </Button>
-            </DropdownMenuTrigger>
+            </DropdownMenuTrigger>:null}
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel className="flex items-center justify-between">
                 <span>Notifications</span>
-                {unreadCount > 0 && (
+                {hasPermission(PERMISSIONS.NOTIFICATIONS_MARK_ALL_AS_READ) && unreadCount > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -102,9 +124,11 @@ export function SiteHeader() {
                   Loading notifications...
                 </div>
               ) : isError ? (
-                <div className="p-4 text-center text-sm text-destructive">
-                  Failed to load notifications
-                </div>
+                <ErrorMessage
+                  error={notificationsError}
+                  fallback="Failed to load notifications"
+                  className="p-4 text-center"
+                />
               ) : recentNotifications.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">
                   No notifications

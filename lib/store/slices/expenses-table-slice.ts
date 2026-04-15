@@ -7,6 +7,8 @@ export interface ExpensesTableState {
   limit: number;
   startDate: string;
   endDate: string;
+  sortBy: "category" | "description" | "vendor" | "amount" | "date" | "status" | "gymId";
+  sortOrder: "asc" | "desc";
 }
 
 const getCurrentMonthDates = () => {
@@ -27,6 +29,8 @@ const initialState: ExpensesTableState = {
   limit: 10,
   startDate,
   endDate,
+  sortBy: "date",
+  sortOrder: "desc",
 };
 
 export const expensesTableSlice = createSlice({
@@ -57,6 +61,23 @@ export const expensesTableSlice = createSlice({
       state.endDate = "";
       state.page = 1;
     },
+    setSorting(
+      state,
+      action: {
+        payload:
+          | { id: "category" | "description" | "vendor" | "amount" | "date" | "status" | "gymId"; desc: boolean }
+          | null;
+      }
+    ) {
+      const next = action.payload;
+      if (!next) {
+        state.sortBy = "date";
+        state.sortOrder = "desc";
+        return;
+      }
+      state.sortBy = next.id;
+      state.sortOrder = next.desc ? "desc" : "asc";
+    },
   },
 });
 
@@ -67,5 +88,6 @@ export const {
   setStartDate,
   setEndDate,
   clearDateRange,
+  setSorting,
 } = expensesTableSlice.actions;
 export default expensesTableSlice.reducer;

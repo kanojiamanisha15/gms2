@@ -3,11 +3,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   login,
-  register,
   getCurrentUser,
   logout,
   type LoginCredentials,
-  type RegisterData,
 } from "@/lib/services/api-client";
 
 /** Hook for user login*/
@@ -36,28 +34,7 @@ export function useLogin() {
 }
 
 /** Hook for user registration*/
-export function useRegister() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (userData: RegisterData) => register(userData),
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success("Account created successfully! Please login.");
-        // Invalidate and refetch user data
-        queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-        router.push("/login");
-      } else {
-        toast.error(data.error || "Failed to create account");
-      }
-    },
-    onError: (error) => {
-      console.error("Registration error:", error);
-      toast.error("An unexpected error occurred. Please try again.");
-    },
-  });
-}
+// Registration via /api/auth/register has been removed.
 
 /** Hook to get current authenticated user*/
 export function useCurrentUser() {
