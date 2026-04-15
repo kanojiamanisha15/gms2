@@ -119,6 +119,7 @@ export const doCreateMembershipPlan = async (
       duration: planData.duration,
       features: planData.features?.trim() || null,
       status: planData.status ?? "active",
+      gymId: planData.gymId ?? null,
     }
   );
   return response;

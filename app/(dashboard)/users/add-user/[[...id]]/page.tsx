@@ -42,8 +42,6 @@ import {
 } from "@/lib/constants/roles";
 import { doGetGyms } from "@/lib/services/gyms";
 
-const NO_GYM_VALUE = "__none__";
-
 type UserFormData = {
   name: string;
   email: string;
@@ -66,7 +64,10 @@ export default function AddUserPage() {
 
   const canLoadGyms = hasPermission(PERMISSIONS.GYMS_READ);
 
-  const { data: gymsListData } = useQuery({
+  const {
+    data: gymsListData,
+    isLoading: isGymsLoading,
+  } = useQuery({
     queryKey: ["gyms", "list", "userForm"],
     queryFn: () => doGetGyms({ page: 1, limit: 200 }),
     enabled: canLoadGyms,
@@ -92,10 +93,10 @@ export default function AddUserPage() {
   }, [gymOptions, isEditMode, user]);
 
   const gymSelectLabels = useMemo(() => {
-    const m: Record<string, string> = { [NO_GYM_VALUE]: "No gym selected" };
+    const m: Record<string, string> = {};
     for (const g of dropdownGyms) {
       const idStr = String(g.gymId);
-      m[idStr] = `${g.gymName} (${idStr})`;
+      m[idStr] = g.gymName;
     }
     return m;
   }, [dropdownGyms]);
@@ -111,7 +112,7 @@ export default function AddUserPage() {
       email: "",
       password: "",
       role: "user",
-      gymId: NO_GYM_VALUE,
+      gymId: "",
     },
   });
 
@@ -122,9 +123,12 @@ export default function AddUserPage() {
       email: user.email,
       role: user.role,
       password: "",
-      gymId: user.gymId != null ? String(user.gymId) : NO_GYM_VALUE,
+      gymId: user.gymId != null ? String(user.gymId) : "",
     });
   }, [isEditMode, user, form]);
+
+  const selectedRole = form.watch("role");
+  const isGymRequired = selectedRole === "user" || selectedRole === "manager";
 
   const onSubmit = (data: UserFormData) => {
     if (isEditMode) {
@@ -142,12 +146,15 @@ export default function AddUserPage() {
         email: data.email.trim().toLowerCase(),
       };
       if (canManageRoles) {
-        body.role = data.role;
+        const role = data.role?.trim();
+        if (role) {
+          body.role = role;
+        }
       }
       if (data.password.trim().length > 0) {
         body.password = data.password.trim();
       }
-      if (data.gymId === NO_GYM_VALUE || !String(data.gymId).trim()) {
+      if (!String(data.gymId).trim()) {
         body.gymId = null;
       } else {
         const n = parseInt(String(data.gymId).trim(), 10);
@@ -166,9 +173,9 @@ export default function AddUserPage() {
         name: data.name.trim(),
         email: data.email.trim().toLowerCase(),
         password: data.password,
-        role: canManageRoles ? data.role : "user",
+        role: canManageRoles ? data.role.trim() : "user",
         gymId:
-          data.gymId === NO_GYM_VALUE || !String(data.gymId).trim()
+          !String(data.gymId).trim()
             ? null
             : (() => {
                 const n = parseInt(String(data.gymId).trim(), 10);
@@ -317,6 +324,7 @@ export default function AddUserPage() {
                     <FormField
                       control={form.control}
                       name="role"
+                      rules={{ required: "Role is required" }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Role</FormLabel>
@@ -333,8 +341,7 @@ export default function AddUserPage() {
                               </SelectTrigger>
                               <SelectContent align="start">
                                 {ROLE_KEYS.filter(
-                                  (key) =>
-                                    isCurrentSuperAdmin || key !== SUPER_ADMIN_ROLE
+                                  (key) => key !== SUPER_ADMIN_ROLE
                                 ).map((key) => (
                                   <SelectItem key={key} value={key}>
                                     {ROLE_LABELS[key]}
@@ -360,25 +367,32 @@ export default function AddUserPage() {
                       name="gymId"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel>Gym</FormLabel>
+                          <FormLabel>
+                            Gym
+                            {isGymRequired ? (
+                              <span className="ml-1 text-destructive">*</span>
+                            ) : null}
+                          </FormLabel>
                           <FormControl>
                             <Select
                               onValueChange={field.onChange}
                               value={field.value}
                             >
-                              <SelectTrigger className="w-full">
+                              <SelectTrigger
+                                className="w-full"
+                                disabled={isGymsLoading || dropdownGyms.length === 0}
+                                showClear={!isGymRequired}
+                                clearAriaLabel="Clear selected gym"
+                              >
                                 <SelectValue
-                                  placeholder="Select gym"
+                                  placeholder={isGymsLoading ? "Loading gyms..." : "Select gym"}
                                   labels={gymSelectLabels}
                                 />
                               </SelectTrigger>
                               <SelectContent align="start">
-                                <SelectItem value={NO_GYM_VALUE}>
-                                  No gym selected
-                                </SelectItem>
                                 {dropdownGyms.map((g) => (
                                   <SelectItem key={g.gymId} value={String(g.gymId)}>
-                                    {g.gymName} ({g.gymId})
+                                    {g.gymName}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -387,6 +401,10 @@ export default function AddUserPage() {
                           <FormMessage />
                         </FormItem>
                       )}
+                      rules={{
+                        validate: (value) =>
+                          !isGymRequired || !!String(value).trim() || "Gym is required for user and manager",
+                      }}
                     />
                   </div>
 

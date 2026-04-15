@@ -2,7 +2,8 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PageContent } from "@/components/ui/page-content";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,9 @@ import {
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTrainer, useCreateTrainer, useUpdateTrainer } from "@/hooks/use-trainers";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { doGetGyms } from "@/lib/services/gyms";
 import { formatDateForInput } from "@/lib/helpers";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { ContentLoader } from "@/components/ui/content-loader";
@@ -34,6 +38,7 @@ type TrainerFormData = {
   name: string;
   email: string;
   phone: string;
+  gymId: string;
   role: "trainer" | "staff";
   hireDate: string;
   status: "active" | "inactive";
@@ -64,8 +69,26 @@ export default function AddTrainerPage() {
     isError: isTrainerError,
     error: trainerError,
   } = useTrainer(trainerId);
+  const { isSuperAdmin, currentUser, hasPermission } = usePermissions();
   const createMutation = useCreateTrainer();
   const updateMutation = useUpdateTrainer();
+  const canLoadGyms = hasPermission(PERMISSIONS.GYMS_READ);
+  const showGymDropdown = isSuperAdmin;
+
+  const { data: gymsListData, isLoading: isGymsLoading } = useQuery({
+    queryKey: ["gyms", "list", "trainerForm"],
+    queryFn: () => doGetGyms({ page: 1, limit: 200 }),
+    enabled: showGymDropdown && canLoadGyms,
+  });
+  const gymOptions = gymsListData?.gyms ?? [];
+  const gymLabels = useMemo(
+    () =>
+      gymOptions.reduce<Record<string, string>>((acc, gym) => {
+        acc[String(gym.gymId)] = gym.gymName;
+        return acc;
+      }, {}),
+    [gymOptions]
+  );
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const submitError = createMutation.error ?? updateMutation.error;
@@ -75,6 +98,7 @@ export default function AddTrainerPage() {
       name: "",
       email: "",
       phone: "",
+      gymId: "",
       role: "trainer",
       hireDate: new Date().toISOString().split("T")[0],
       status: "active",
@@ -88,6 +112,7 @@ export default function AddTrainerPage() {
       name: apiTrainer.name,
       email: apiTrainer.email ?? "",
       phone: apiTrainer.phone ?? "",
+      gymId: apiTrainer.gymId != null ? String(apiTrainer.gymId) : "",
       role: (apiTrainer.role?.toLowerCase() === "staff" ? "staff" : "trainer") as TrainerFormData["role"],
       hireDate: formatDateForInput(apiTrainer.hireDate),
       status: (apiTrainer.status as TrainerFormData["status"]) ?? "active",
@@ -99,6 +124,11 @@ export default function AddTrainerPage() {
       name: data.name.trim(),
       email: data.email?.trim() || null,
       phone: data.phone?.trim(),
+      gymId: showGymDropdown
+        ? !String(data.gymId).trim()
+          ? null
+          : Number(String(data.gymId))
+        : currentUser?.gymId ?? null,
       role: toApiRole(data.role),
       hireDate: data.hireDate,
       status: data.status,
@@ -239,6 +269,42 @@ export default function AddTrainerPage() {
                         required: "Phone number is required",
                       }}
                     />
+
+                    {showGymDropdown ? (
+                      <FormField
+                        control={form.control}
+                        name="gymId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Gym
+                              <span className="ml-1 text-destructive">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger className="w-full" disabled={isGymsLoading || gymOptions.length === 0}>
+                                  <SelectValue
+                                    placeholder={isGymsLoading ? "Loading gyms..." : "Select gym"}
+                                    labels={gymLabels}
+                                  />
+                                </SelectTrigger>
+                                <SelectContent align="start">
+                                  {gymOptions.map((g) => (
+                                    <SelectItem key={g.gymId} value={String(g.gymId)}>
+                                      {g.gymName}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                        rules={{
+                          validate: (value) => !!String(value).trim() || "Gym is required for super admin",
+                        }}
+                      />
+                    ) : null}
 
                     <FormField
                       control={form.control}

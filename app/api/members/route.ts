@@ -205,6 +205,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (authz.isSuperAdmin && gymId == null) {
+      return NextResponse.json(
+        { success: false, error: 'Gym is required for super admin' },
+        { status: 400 }
+      );
+    }
 
     // Next sequential number for same join_date month/year
     const countRows = await query<{ count: string }>(

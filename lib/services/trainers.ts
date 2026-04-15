@@ -119,6 +119,7 @@ export const doCreateTrainer = async (
       role: trainerData.role,
       hireDate: trainerData.hireDate,
       status: trainerData.status ?? "active",
+      gymId: trainerData.gymId ?? null,
     }
   );
   return response;

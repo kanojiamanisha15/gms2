@@ -67,7 +67,7 @@ export function MembersImportExportActions() {
   const limit = useAppSelector((s) => s.membersTable.limit);
   const sortBy = useAppSelector((s) => s.membersTable.sortBy);
   const sortOrder = useAppSelector((s) => s.membersTable.sortOrder);
-  const includeGymId = isSuperAdmin && (currentUser?.gymId == null);
+  const includeGymId = isSuperAdmin;
   const canImport = hasPermission(PERMISSIONS.MEMBERS_IMPORT);
   const canExport = hasPermission(PERMISSIONS.MEMBERS_EXPORT);
 

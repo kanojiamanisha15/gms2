@@ -194,6 +194,7 @@ export const doCreateMember = async (
       status: memberData.status,
       paymentStatus: memberData.paymentStatus,
       paymentAmount: memberData.paymentAmount,
+      gymId: memberData.gymId ?? null,
     }
   );
   return response;

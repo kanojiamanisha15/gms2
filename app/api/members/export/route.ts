@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const includeGymId = authz.isSuperAdmin && (authz.payload.gymId == null);
+    const includeGymId = authz.isSuperAdmin;
     const search = searchParams.get("search");
     const scope = resolveRequestedGymScope(authz, searchParams.get("gymId"));
     if (scope.error) return scope.error;

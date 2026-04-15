@@ -103,11 +103,18 @@ export async function POST(request: NextRequest) {
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const email = typeof body.email === 'string' ? body.email.toLowerCase().trim() : '';
     const password = typeof body.password === 'string' ? body.password : '';
-    let role = typeof body.role === 'string' ? body.role.trim().toLowerCase() : 'user';
+    const roleRaw = typeof body.role === 'string' ? body.role.trim().toLowerCase() : '';
+    let role = roleRaw;
 
     if (!name || !email || !password) {
       return NextResponse.json(
         { success: false, error: 'Name, email, and password are required' },
+        { status: 400 }
+      );
+    }
+    if (!role) {
+      return NextResponse.json(
+        { success: false, error: 'Role is required' },
         { status: 400 }
       );
     }
@@ -152,6 +159,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Invalid gym selected' }, { status: 400 });
       }
       gymFk = gymRow.gym_id;
+    }
+
+    if ((role === 'user' || role === 'manager') && gymFk == null) {
+      return NextResponse.json(
+        { success: false, error: 'Gym is required for role user or manager' },
+        { status: 400 }
+      );
     }
 
     const dup = await queryOne<{ id: number }>(

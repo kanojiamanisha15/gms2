@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -9,7 +10,6 @@ import {
   UserCog,
   CreditCard,
   Receipt,
-  Layers,
   Building2,
 } from "lucide-react";
 import {
@@ -134,8 +134,15 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
               className="data-[slot=sidebar-menu-button]:!p-1.5 cursor-pointer"
               onClick={!isOnPrimaryNav ? handleLogoClick : undefined}
             >
-              <Layers className="!size-5" />
-              <span className="text-base font-semibold">Acme Inc.</span>
+              <Image
+                src="/icon-192.png"
+                alt="GymOS icon"
+                width={30}
+                height={30}
+                className="size-6 rounded-sm"
+                priority
+              />
+              <span className="text-base font-semibold">GymOS</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

@@ -1,6 +1,6 @@
 # Project Structure
 
-This document outlines the folder structure of the Gym Management System (GMS) Next.js application, organized according to best practices.
+This document outlines the folder structure of the GymOS Next.js application, organized according to best practices.
 
 ## Directory Structure
 
