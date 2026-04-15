@@ -143,6 +143,7 @@ export function ExpensesTable() {
     date: string;
     status: "paid" | "pending" | "overdue";
     vendor?: string;
+    gymId: string;
   }) => {
     const payload = {
       category: formData.category,
@@ -151,6 +152,7 @@ export function ExpensesTable() {
       date: formData.date,
       status: formData.status,
       vendor: formData.vendor?.trim() || null,
+      gymId: !String(formData.gymId).trim() ? null : Number(String(formData.gymId)),
     };
     if (selectedExpense) {
       await updateMutation.mutateAsync({

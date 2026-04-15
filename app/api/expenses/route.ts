@@ -165,6 +165,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (authz.isSuperAdmin && gymId == null) {
+      return NextResponse.json(
+        { success: false, error: 'Gym is required for super admin' },
+        { status: 400 }
+      );
+    }
 
     const insertSql = `
       INSERT INTO expenses (category, description, amount, date, status, vendor, gym_id)

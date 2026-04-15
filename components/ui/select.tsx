@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SelectContextValue {
@@ -95,12 +95,21 @@ function SelectTrigger({
   className,
   size = "default",
   children,
+  showClear = false,
+  onClear,
+  clearAriaLabel = "Clear selection",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: "sm" | "default";
+  showClear?: boolean;
+  onClear?: () => void;
+  clearAriaLabel?: string;
 }) {
   const context = React.useContext(SelectContext);
   if (!context) throw new Error("SelectTrigger must be used within Select");
+  const disabled = Boolean(props.disabled);
+  const hasValue = Boolean(context.value && String(context.value).trim().length > 0);
+  const canClear = showClear && hasValue && !disabled;
 
   return (
     <button
@@ -110,13 +119,49 @@ function SelectTrigger({
       data-size={size}
       onClick={() => context.setOpen(!context.open)}
       className={cn(
-        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
     >
-      {children}
-      <ChevronDownIcon className="size-4 opacity-50" />
+      <span className="min-w-0 flex-1 truncate text-left">{children}</span>
+      <span className="flex items-center gap-1">
+        {canClear ? (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label={clearAriaLabel}
+            className="rounded-sm p-0.5 opacity-70 hover:opacity-100"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onClear) {
+                onClear();
+              } else {
+                context.onValueChange?.("");
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onClear) {
+                  onClear();
+                } else {
+                  context.onValueChange?.("");
+                }
+              }
+            }}
+          >
+            <X className="size-3.5" />
+          </span>
+        ) : null}
+        <ChevronDownIcon className="size-4 opacity-50" />
+      </span>
     </button>
   );
 }

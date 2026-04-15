@@ -144,6 +144,16 @@ export async function PUT(
       );
     }
 
+    if (authz.isSuperAdmin) {
+      const effectiveGymId = gymId !== undefined ? gymId : existing.gym_id;
+      if (effectiveGymId == null) {
+        return NextResponse.json(
+          { success: false, error: 'Gym is required for super admin' },
+          { status: 400 }
+        );
+      }
+    }
+
     const updates: string[] = [];
     const values: (string | number | null)[] = [];
     let paramIndex = 1;

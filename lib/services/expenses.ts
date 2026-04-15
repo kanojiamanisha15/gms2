@@ -124,6 +124,7 @@ export const doCreateExpense = async (
       date: expenseData.date,
       status: expenseData.status,
       vendor: expenseData.vendor?.trim() || null,
+      gymId: expenseData.gymId ?? null,
     }
   );
   return response;

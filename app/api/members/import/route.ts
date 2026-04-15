@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
           errors.push({ rowNumber, message: "Forbidden Gym Id in import row" });
           continue;
         }
-        if (authz.isSuperAdmin && authz.payload.gymId == null && rawGymIdMissing) {
+        if (authz.isSuperAdmin && rawGymIdMissing) {
           errors.push({ rowNumber, message: "Gym Id is missing" });
           continue;
         }

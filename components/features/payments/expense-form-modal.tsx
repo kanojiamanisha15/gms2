@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useForm } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,9 @@ import {
 } from "@/components/ui/form";
 import type { IExpenseData } from "@/types";
 import { formatDateForInput } from "@/lib/helpers";
+import { usePermissions } from "@/hooks/use-permissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
+import { doGetGyms } from "@/lib/services/gyms";
 
 type ExpenseFormData = {
   category: string;
@@ -37,6 +41,7 @@ type ExpenseFormData = {
   date: string;
   status: "paid" | "pending" | "overdue";
   vendor?: string;
+  gymId: string;
 };
 
 const categoryLabels: Record<string, string> = {
@@ -73,6 +78,23 @@ export function ExpenseFormModal({
   isSubmitting = false,
 }: ExpenseFormModalProps) {
   const isEditMode = !!expense;
+  const { isSuperAdmin, currentUser, hasPermission } = usePermissions();
+  const canLoadGyms = hasPermission(PERMISSIONS.GYMS_READ);
+  const showGymDropdown = isSuperAdmin;
+  const { data: gymsListData, isLoading: isGymsLoading } = useQuery({
+    queryKey: ["gyms", "list", "expenseFormModal"],
+    queryFn: () => doGetGyms({ page: 1, limit: 200 }),
+    enabled: showGymDropdown && canLoadGyms,
+  });
+  const gymOptions = gymsListData?.gyms ?? [];
+  const gymLabels = React.useMemo(
+    () =>
+      gymOptions.reduce<Record<string, string>>((acc, gym) => {
+        acc[String(gym.gymId)] = gym.gymName;
+        return acc;
+      }, {}),
+    [gymOptions]
+  );
 
   const form = useForm<ExpenseFormData>({
     defaultValues: {
@@ -82,6 +104,7 @@ export function ExpenseFormModal({
       date: new Date().toISOString().split("T")[0],
       status: "pending",
       vendor: "",
+      gymId: "",
     },
   });
 
@@ -94,6 +117,7 @@ export function ExpenseFormModal({
         date: formatDateForInput(expense.date),
         status: expense.status as ExpenseFormData["status"],
         vendor: expense.vendor ?? "",
+        gymId: expense.gymId != null ? String(expense.gymId) : "",
       });
     } else {
       form.reset({
@@ -103,9 +127,10 @@ export function ExpenseFormModal({
         date: new Date().toISOString().split("T")[0],
         status: "pending",
         vendor: "",
+        gymId: showGymDropdown ? "" : String(currentUser?.gymId ?? ""),
       });
     }
-  }, [expense, form]);
+  }, [expense, form, showGymDropdown, currentUser?.gymId]);
 
   const onSubmit = async (data: ExpenseFormData) => {
     try {
@@ -250,6 +275,42 @@ export function ExpenseFormModal({
                   required: "Status is required",
                 }}
               />
+
+              {showGymDropdown ? (
+                <FormField
+                  control={form.control}
+                  name="gymId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Gym
+                        <span className="ml-1 text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <SelectTrigger className="w-full" disabled={isGymsLoading || gymOptions.length === 0}>
+                            <SelectValue
+                              placeholder={isGymsLoading ? "Loading gyms..." : "Select gym"}
+                              labels={gymLabels}
+                            />
+                          </SelectTrigger>
+                          <SelectContent align="start">
+                            {gymOptions.map((g) => (
+                              <SelectItem key={g.gymId} value={String(g.gymId)}>
+                                {g.gymName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                  rules={{
+                    validate: (value) => !!String(value).trim() || "Gym is required for super admin",
+                  }}
+                />
+              ) : null}
             </div>
 
             <FormField

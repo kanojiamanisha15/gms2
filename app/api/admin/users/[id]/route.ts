@@ -120,8 +120,8 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
     }
 
-    const target = await queryOne<{ id: number; role: string }>(
-      `SELECT id, role FROM users WHERE id = $1`,
+    const target = await queryOne<{ id: number; role: string; gym_id: number | null }>(
+      `SELECT id, role, gym_id FROM users WHERE id = $1`,
       [targetId]
     );
 
@@ -177,6 +177,7 @@ export async function PATCH(
       vals.push(email);
     }
 
+    let nextRole = target.role;
     if (body.role !== undefined) {
       const roleCheck = await requirePermission(request, PERMISSIONS.SYSTEM_MANAGE_ROLES);
       if ('error' in roleCheck) return roleCheck.error;
@@ -195,6 +196,7 @@ export async function PATCH(
         await demoteOtherSuperAdmins(targetId);
       }
 
+      nextRole = role;
       sets.push(`role = $${p++}`);
       vals.push(role);
     }
@@ -241,8 +243,10 @@ export async function PATCH(
       vals.push(normalized);
     }
 
+    let nextGymId: number | null = target.gym_id;
     if (body.gymId !== undefined) {
       if (body.gymId === null || body.gymId === '') {
+        nextGymId = null;
         sets.push(`gym_id = NULL`);
       } else {
         const n =
@@ -262,9 +266,17 @@ export async function PATCH(
         if (!gymRow) {
           return NextResponse.json({ success: false, error: 'Invalid gym selected' }, { status: 400 });
         }
+        nextGymId = gymRow.gym_id;
         sets.push(`gym_id = $${p++}`);
         vals.push(gymRow.gym_id);
       }
+    }
+
+    if ((nextRole === 'user' || nextRole === 'manager') && nextGymId == null) {
+      return NextResponse.json(
+        { success: false, error: 'Gym is required for role user or manager' },
+        { status: 400 }
+      );
     }
 
     // Nothing to update: return current user state.
