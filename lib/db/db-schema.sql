@@ -1,4 +1,4 @@
--- Database Schema for GMS (Gym Management System)
+-- Database Schema for GymOS
 -- Run this SQL script to create the necessary tables
 
 -- Users table (example)

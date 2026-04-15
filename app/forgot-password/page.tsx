@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
+import Image from "next/image";
 
 type ForgotPasswordFormValues = {
   email: string;
@@ -39,12 +40,28 @@ export default function ForgotPasswordPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
+        <CardHeader className="space-y-3">
+          <div className="flex items-center justify-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
+            <Image
+              src="/icon-192.png"
+              alt="GymOS icon"
+              width={28}
+              height={28}
+              className="rounded-sm"
+              priority
+            />
+            <div className="text-left">
+              <p className="text-base font-semibold leading-tight">GymOS</p>
+              <p className="text-xs text-muted-foreground">Gym Management Platform</p>
+            </div>
+          </div>
+          <div className="space-y-1">
           <CardTitle className="text-2xl font-bold">Forgot password?</CardTitle>
           <CardDescription>
             Enter your email address and we&apos;ll send you a link to reset
             your password
           </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>

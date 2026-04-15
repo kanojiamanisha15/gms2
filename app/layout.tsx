@@ -12,14 +12,22 @@ const nunitoSans = Nunito_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Gym Management System",
+  title: "GymOS",
   description: "Manage your gym members, attendance, and payments",
   manifest: "/manifest.webmanifest",
-  applicationName: "Gym Management System",
+  applicationName: "GymOS",
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Gym Management System",
+    title: "GymOS",
   },
 };
 
