@@ -3,7 +3,6 @@ import { Nunito_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/lib/providers/query-provider";
 import { StoreProvider } from "@/lib/providers/store-provider";
-import { PWARegister } from "@/components/pwa-register";
 import "./globals.css";
 
 const nunitoSans = Nunito_Sans({
@@ -14,25 +13,21 @@ const nunitoSans = Nunito_Sans({
 export const metadata: Metadata = {
   title: "GymOS",
   description: "Manage your gym members, attendance, and payments",
-  manifest: "/manifest.webmanifest",
-  applicationName: "GymOS",
+  generator: "Next.js",
+  manifest: "/manifest.json",
+  keywords: ["gym", "management", "members", "attendance", "payments"],
+  authors: [{ name: "Manisha Kanojia", url: "https://yourwebsite.com" }],
   icons: {
-    icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    shortcut: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "GymOS",
+    icon: "icons/icon-192-192.png",
+    apple: "icons/icon-192-192.png",
   },
 };
 
 export const viewport: Viewport = {
   themeColor: "#0f172a",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -48,7 +43,6 @@ export default function RootLayout({
       >
         <StoreProvider>
           <QueryProvider>
-            <PWARegister />
             {children}
             <Toaster position="top-right" richColors />
           </QueryProvider>
