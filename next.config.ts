@@ -9,7 +9,6 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  distDir: "build",
   reactStrictMode: true,
   compiler: {
     removeConsole: process.env.NODE_ENV !== "development",
