@@ -43,22 +43,18 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3">
-          <div className="flex items-center justify-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
-            <Image
-              src="/icon-192.png"
-              alt="GymOS icon"
-              width={28}
-              height={28}
-              className="rounded-sm"
-              priority
-            />
-            <div className="text-left">
-              <p className="text-base font-semibold leading-tight">GymOS</p>
-              <p className="text-xs text-muted-foreground">Gym Management Platform</p>
-            </div>
-          </div>
+          <Image
+            src="/gymoslogo.jpg"
+            alt="GymOS logo"
+            width={220}
+            height={70}
+            className="h-auto w-auto max-h-16"
+            priority
+            unoptimized
+            draggable={false}
+          />
           <div className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Reset password</CardTitle>
+            <CardTitle className="text-2xl font-bold">Reset password</CardTitle>
             <CardDescription>
               Enter your new password below to reset your account password
             </CardDescription>

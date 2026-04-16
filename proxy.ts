@@ -8,12 +8,15 @@ function isPublicRoute(pathname: string): boolean {
   return PUBLIC_PATHS.includes(pathname);
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('auth_token')?.value;
 
-  // Allow API and static assets through (matcher already excludes most static)
-  if (pathname.startsWith('/api/')) {
+  // Allow API and public static assets through
+  if (
+    pathname.startsWith('/api/') ||
+    /\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|js|txt|xml|webmanifest)$/.test(pathname)
+  ) {
     return NextResponse.next();
   }
 
@@ -45,6 +48,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public folder
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|json|js|txt|xml|webmanifest)$).*)',
   ],
 };

@@ -48,12 +48,12 @@ const navSecondary: {
   url: string;
   icon: typeof LayoutDashboard;
 }[] = [
-  // {
-  //   title: "Settings",
-  //   url: "/settings",
-  //   icon: Settings,
-  // },
-];
+    // {
+    //   title: "Settings",
+    //   url: "/settings",
+    //   icon: Settings,
+    // },
+  ];
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user?: {
@@ -107,10 +107,10 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
 
   const user = userProp
     ? {
-        name: userProp.name,
-        email: userProp.email,
-        avatar: "",
-      }
+      name: userProp.name,
+      email: userProp.email,
+      avatar: "",
+    }
     : defaultUser;
 
   const isOnPrimaryNav = pathname === primaryNavHref || pathname === "/";
@@ -135,14 +135,15 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
               onClick={!isOnPrimaryNav ? handleLogoClick : undefined}
             >
               <Image
-                src="/icon-192.png"
-                alt="GymOS icon"
-                width={30}
-                height={30}
-                className="size-6 rounded-sm"
+                src="/gymlogo.png"
+                alt="GymOS logo"
+                width={150}
+                height={0}
+                className="h-auto w-auto"
                 priority
+                unoptimized
+                draggable={false}
               />
-              <span className="text-base font-semibold">GymOS</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
