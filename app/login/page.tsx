@@ -48,7 +48,7 @@ export default function LoginPage() {
     if (isPending) {
       return;
     }
-    
+
     login({
       email: data.email,
       password: data.password,
@@ -59,22 +59,18 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3">
-          <div className="flex items-center justify-center gap-3 rounded-lg border bg-card/60 px-4 py-3">
             <Image
-              src="/icon-192.png"
-              alt="GymOS icon"
-              width={28}
-              height={28}
-              className="rounded-sm"
+              src="/gymlogo.png"
+              alt="GymOS logo"
+              width={220}
+              height={64}
+              className="h-auto w-auto"
               priority
+              unoptimized
+              draggable={false}
             />
-            <div className="text-left">
-              <p className="text-base font-semibold leading-tight">GymOS</p>
-              <p className="text-xs text-muted-foreground">Gym Management Platform</p>
-            </div>
-          </div>
           <div className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
             <CardDescription>
               Enter your credentials to access your account
             </CardDescription>

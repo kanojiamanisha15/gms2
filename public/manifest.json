@@ -9,7 +9,7 @@
     "start_url": "/",
     "icons": [
         {
-            "src": "icons/icon-192-192.png",
+            "src": "icons/gymos-192.png",
             "type": "image/svg+xml",
             "sizes": "any"
         }

@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   keywords: ["gym", "management", "members", "attendance", "payments"],
   authors: [{ name: "Manisha Kanojia", url: "https://yourwebsite.com" }],
   icons: {
-    icon: "icons/icon-192-192.png",
-    apple: "icons/icon-192-192.png",
+    icon: "icons/gymos-192.png",
+    apple: "icons/gymos-192.png",
   },
 };
 
