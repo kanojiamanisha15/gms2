@@ -65,6 +65,21 @@ CREATE TABLE IF NOT EXISTS expenses (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Banks table
+CREATE TABLE IF NOT EXISTS banks (
+  id SERIAL PRIMARY KEY,
+  bank_name VARCHAR(255) NOT NULL,
+  account_number VARCHAR(100),
+  ifsc_code VARCHAR(50),
+  account_holder_name VARCHAR(255) NOT NULL,
+  branch_name VARCHAR(255) NOT NULL,
+  account_type VARCHAR(50) NOT NULL,
+  upi_id VARCHAR(255),
+  gym_id INTEGER,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Attendance table
 CREATE TABLE IF NOT EXISTS attendance (
   id SERIAL PRIMARY KEY,

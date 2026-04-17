@@ -104,6 +104,24 @@ CREATE TABLE "expenses" (
 );
 
 -- CreateTable
+CREATE TABLE "banks" (
+    "id" SERIAL NOT NULL,
+    "bank_name" TEXT NOT NULL,
+    "account_number" TEXT,
+    "ifsc_code" TEXT,
+    "account_holder_name" TEXT NOT NULL,
+    "branch_name" TEXT NOT NULL,
+    "account_type" TEXT NOT NULL,
+    "upi_id" TEXT,
+    "gym_id" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "banks_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "banks_gym_id_fkey" FOREIGN KEY ("gym_id") REFERENCES "gyms"("gym_id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
 CREATE TABLE "attendance" (
     "id" SERIAL NOT NULL,
     "member_id" TEXT NOT NULL,
@@ -157,6 +175,7 @@ CREATE INDEX "members_gym_id_idx" ON "members" ("gym_id");
 CREATE INDEX "trainers_gym_id_idx" ON "trainers" ("gym_id");
 CREATE INDEX "membership_plans_gym_id_idx" ON "membership_plans" ("gym_id");
 CREATE INDEX "expenses_gym_id_idx" ON "expenses" ("gym_id");
+CREATE INDEX "banks_gym_id_idx" ON "banks" ("gym_id");
 CREATE INDEX "payments_gym_id_idx" ON "payments" ("gym_id");
 CREATE INDEX "attendance_gym_id_idx" ON "attendance" ("gym_id");
 CREATE INDEX "notifications_gym_id_idx" ON "notifications" ("gym_id");
@@ -188,6 +207,10 @@ INSERT INTO "permissions" ("key", "description") VALUES
   ('expenses.add', 'Create expenses'),
   ('expenses.update', 'Update expenses'),
   ('expenses.delete', 'Delete expenses'),
+  ('banks.read', 'View banks'),
+  ('banks.add', 'Create banks'),
+  ('banks.update', 'Update banks'),
+  ('banks.delete', 'Delete banks'),
   ('payments.read', 'View payments overview'),
   ('trainers.read', 'View trainers'),
   ('trainers.add', 'Create trainers'),

@@ -5,6 +5,7 @@ import gymsTableReducer from "./slices/gyms-table-slice";
 import trainersTableReducer from "./slices/trainers-table-slice";
 import membershipPlansTableReducer from "./slices/membership-plans-table-slice";
 import expensesTableReducer from "./slices/expenses-table-slice";
+import banksTableReducer from "./slices/banks-table-slice";
 import usersTableReducer from "./slices/users-table-slice";
 import expiringMembersTableReducer from "./slices/expiring-members-table-slice";
 import {
@@ -40,6 +41,12 @@ import {
   clearDateRange as clearExpensesDateRange,
   setSorting as setExpensesSorting,
 } from "./slices/expenses-table-slice";
+import {
+  setSearchInput as setBanksSearchInput,
+  setPage as setBanksPage,
+  setLimit as setBanksLimit,
+  setSorting as setBanksSorting,
+} from "./slices/banks-table-slice";
 import { setSorting as setUsersSorting } from "./slices/users-table-slice";
 import { setSorting as setExpiringMembersSorting } from "./slices/expiring-members-table-slice";
 import { useDispatch, useSelector, type TypedUseSelectorHook } from "react-redux";
@@ -51,6 +58,7 @@ export const store = configureStore({
     trainersTable: trainersTableReducer,
     membershipPlansTable: membershipPlansTableReducer,
     expensesTable: expensesTableReducer,
+    banksTable: banksTableReducer,
     usersTable: usersTableReducer,
     expiringMembersTable: expiringMembersTableReducer,
   },
@@ -160,6 +168,35 @@ export function useUsersTableActions() {
           | { id: "id" | "name" | "email" | "gym" | "role" | "created_at"; desc: boolean }
           | null
       ) => dispatch(setUsersSorting(sorting)),
+      [dispatch]
+    ),
+  };
+}
+
+/** Bound banks table actions. */
+export function useBanksTableActions() {
+  const dispatch = useAppDispatch();
+  return {
+    setSearchInput: useCallback((value: string) => dispatch(setBanksSearchInput(value)), [dispatch]),
+    setPage: useCallback((page: number) => dispatch(setBanksPage(page)), [dispatch]),
+    setLimit: useCallback((limit: number) => dispatch(setBanksLimit(limit)), [dispatch]),
+    setSorting: useCallback(
+      (
+        sorting:
+          | {
+              id:
+                | "bankName"
+                | "accountNumber"
+                | "ifscCode"
+                | "accountHolderName"
+                | "branchName"
+                | "accountType"
+                | "upiId"
+                | "gymId";
+              desc: boolean;
+            }
+          | null
+      ) => dispatch(setBanksSorting(sorting)),
       [dispatch]
     ),
   };

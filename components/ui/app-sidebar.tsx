@@ -11,6 +11,7 @@ import {
   CreditCard,
   Receipt,
   Building2,
+  Landmark,
 } from "lucide-react";
 import {
   getFirstAccessibleHref,
@@ -18,6 +19,7 @@ import {
   userCanViewMembers,
   userCanViewGyms,
   userCanViewMembershipPlans,
+  userCanViewBanks,
   userCanViewPayments,
   userCanViewTrainers,
   userCanViewUsersPage,
@@ -94,6 +96,9 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
     }
     if (userCanViewMembershipPlans(userProp)) {
       items.push({ title: "Membership Plans", url: "/membership-plans", icon: CreditCard });
+    }
+    if (userCanViewBanks(userProp)) {
+      items.push({ title: "Banks", url: "/banks", icon: Landmark });
     }
     if (userCanViewPayments(userProp)) {
       items.push({ title: "Payments and Invoice", url: "/payments", icon: Receipt });

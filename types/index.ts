@@ -42,3 +42,11 @@ export type {
   IExpenseData,
   IExpenseRow,
 } from './expense';
+
+export type {
+  BankAccountType,
+  ICreateBankData,
+  IUpdateBankData,
+  IBankData,
+  IBankRow,
+} from './bank';
