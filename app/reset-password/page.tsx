@@ -44,11 +44,11 @@ export default function ResetPasswordPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3">
           <Image
-            src="/gymoslogo.jpg"
+            src="/gymlogo.png"
             alt="GymOS logo"
             width={220}
             height={70}
-            className="h-auto w-auto max-h-16"
+            className="h-auto w-auto"
             priority
             unoptimized
             draggable={false}
