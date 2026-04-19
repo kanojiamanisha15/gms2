@@ -10,7 +10,6 @@
     "db:init": "tsx lib/db/db-init.ts",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:seed:default-user": "tsx lib/db/seeds/default-user.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

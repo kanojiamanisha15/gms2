@@ -18,7 +18,7 @@ import { useAppSelector, useExpensesTableActions } from "@/lib/store";
 import type { IExpenseData } from "@/types";
 import { usePermissions } from "@/hooks/use-permissions";
 import { PERMISSIONS } from "@/lib/constants/permissions";
-import { ExpensesImportExportActions } from "@/components/features/payments/expenses-import-export-actions";
+import { ExpensesImportExportActions } from "@/components/features/expenses/expenses-import-export-actions";
 
 // Lazy load the expense form modal (only loads when opened)
 const ExpenseFormModal = dynamic(() => import("./expense-form-modal").then(mod => ({ default: mod.ExpenseFormModal })), {

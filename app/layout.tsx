@@ -12,10 +12,10 @@ const nunitoSans = Nunito_Sans({
 
 export const metadata: Metadata = {
   title: "GymOS",
-  description: "Manage your gym members, attendance, and payments",
+  description: "Manage your gym members, attendance, and expenses",
   generator: "Next.js",
   manifest: "/manifest.json",
-  keywords: ["gym", "management", "members", "attendance", "payments"],
+  keywords: ["gym", "management", "members", "attendance", "expenses"],
   authors: [{ name: "Manisha Kanojia", url: "https://yourwebsite.com" }],
   icons: {
     icon: "icons/gymos-192.png",

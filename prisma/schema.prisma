@@ -41,7 +41,6 @@ model Gym {
   membershipPlans MembershipPlan[]
   expenses        Expense[]
   banks           Bank[]
-  payments        Payment[]
   attendances     Attendance[]
   notifications   Notification[]
 
@@ -60,13 +59,15 @@ model Member {
   expiryDate     DateTime? @map("expiry_date")
   status         String    @default("active")
   paymentStatus  String    @default("unpaid") @map("payment_status")
+  paymentMode    String?   @map("payment_mode")
   paymentAmount  Decimal   @default(0.0) @db.Decimal(10, 2) @map("payment_amount")
+  bankId         Int?      @map("bank_id")
   gymId          Int?      @map("gym_id")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @map("updated_at")
 
-  payments Payment[]
   gym      Gym?     @relation(fields: [gymId], references: [gymId])
+  bank     Bank?    @relation(fields: [bankId], references: [id])
 
   @@map("members")
 }
@@ -84,22 +85,6 @@ model MembershipPlan {
   gym          Gym?     @relation(fields: [gymId], references: [gymId])
 
   @@map("membership_plans")
-}
-
-model Payment {
-  id            Int      @id @default(autoincrement())
-  memberId      Int?     @map("member_id")
-  gymId         Int?     @map("gym_id")
-  amount        Decimal  @db.Decimal(10, 2)
-  paymentDate   DateTime @default(now()) @map("payment_date")
-  paymentMethod String?  @map("payment_method")
-  status        String   @default("completed")
-  createdAt     DateTime @default(now()) @map("created_at")
-
-  member Member? @relation(fields: [memberId], references: [id])
-  gym    Gym?    @relation(fields: [gymId], references: [gymId])
-
-  @@map("payments")
 }
 
 model Expense {
@@ -178,6 +163,7 @@ model Bank {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @map("updated_at")
   gym               Gym?     @relation(fields: [gymId], references: [gymId])
+  members           Member[]
 
   @@map("banks")
 }

@@ -45,8 +45,8 @@ export function userCanViewBanks(user?: AuthzUser): boolean {
   return hasPermissionForUser(user, PERMISSIONS.BANKS_READ);
 }
 
-export function userCanViewPayments(user?: AuthzUser): boolean {
-  return hasPermissionForUser(user, PERMISSIONS.PAYMENTS_READ);
+export function userCanViewExpenses(user?: AuthzUser): boolean {
+  return hasPermissionForUser(user, PERMISSIONS.EXPENSES_READ);
 }
 
 export function userCanViewNotifications(user?: AuthzUser): boolean {
@@ -148,8 +148,8 @@ export function canAccessPathname(pathname: string, user: AuthzUser): boolean {
   if (isPath(pathname, '/trainers-staff')) {
     return userCanViewTrainers(user);
   }
-  if (isPath(pathname, '/payments')) {
-    return userCanViewPayments(user);
+  if (isPath(pathname, '/payments') || isPath(pathname, '/expenses')) {
+    return userCanViewExpenses(user);
   }
   if (isPath(pathname, '/dashboard')) {
     return userCanViewDashboard(user);
@@ -176,7 +176,7 @@ export function getFirstAccessibleHref(user: AuthzUser): string {
   if (userCanViewTrainers(user)) return '/trainers-staff';
   if (userCanViewMembershipPlans(user)) return '/membership-plans';
   if (userCanViewBanks(user)) return '/banks';
-  if (userCanViewPayments(user)) return '/payments';
+  if (userCanViewExpenses(user)) return '/expenses';
   if (userCanViewNotifications(user)) return '/notifications';
   if (userCanViewMyAccount(user)) return '/account';
   return '/request-permissions';

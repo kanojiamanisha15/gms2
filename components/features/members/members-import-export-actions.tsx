@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { doImportMembers, type ImportMemberRow } from "@/lib/services/members";
+import { doGetBanks } from "@/lib/services/banks";
 import { doGetMembershipPlans } from "@/lib/services/membership-plans";
 import { normalizePhoneToIndia } from "@/lib/helpers";
 import { API_ENDPOINTS } from "@/lib/constants/api";
@@ -14,8 +15,34 @@ import {
   type ParsedImportRow,
 } from "@/components/ui/entity-import-export-actions";
 
-const TEMPLATE_HEADERS = ["name", "email", "phone", "membershipType", "joinDate", "expiryDate", "status", "paymentStatus", "paymentAmount", "gymId"] as const;
-const TEMPLATE_SAMPLE_ROW = ["John Doe", "john@example.com", "+919876543210", "Gold", "2026-04-01", "2026-05-01", "active", "paid", "1500", "1"] as const;
+const TEMPLATE_HEADERS = [
+  "name",
+  "email",
+  "phone",
+  "membershipType",
+  "joinDate",
+  "expiryDate",
+  "status",
+  "paymentStatus",
+  "paymentMode",
+  "bankId",
+  "paymentAmount",
+  "gymId",
+] as const;
+const TEMPLATE_SAMPLE_ROW = [
+  "John Doe",
+  "john@example.com",
+  "+919876543210",
+  "Gold",
+  "2026-04-01",
+  "2026-05-01",
+  "active",
+  "paid",
+  "cash",
+  "",
+  "1500",
+  "1",
+] as const;
 
 const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
 function splitCsvLine(line: string): string[] {
@@ -70,6 +97,44 @@ export function MembersImportExportActions() {
   const includeGymId = isSuperAdmin;
   const canImport = hasPermission(PERMISSIONS.MEMBERS_IMPORT);
   const canExport = hasPermission(PERMISSIONS.MEMBERS_EXPORT);
+
+  const banksQuery = useQuery({
+    queryKey: ["banks", "import-validation"],
+    enabled: canImport,
+    queryFn: async () => {
+      let pageNumber = 1;
+      let totalPages = 1;
+      const allBanks: Array<{ id: number; gymId: number | null }> = [];
+      while (pageNumber <= totalPages) {
+        const response = await doGetBanks({
+          page: pageNumber,
+          limit: 100,
+          sortBy: "bankName",
+          sortOrder: "asc",
+        });
+        totalPages = response.totalPages || 1;
+        allBanks.push(
+          ...response.banks.map((b) => ({
+            id: b.id,
+            gymId: b.gymId ?? null,
+          }))
+        );
+        pageNumber++;
+      }
+      return allBanks;
+    },
+  });
+
+  const bankIdsByGym = useMemo(() => {
+    const m = new Map<string, Set<number>>();
+    (banksQuery.data ?? []).forEach((b) => {
+      const key = b.gymId == null ? "null" : String(b.gymId);
+      const set = m.get(key) ?? new Set<number>();
+      set.add(b.id);
+      m.set(key, set);
+    });
+    return m;
+  }, [banksQuery.data]);
 
   const plansQuery = useQuery({
     queryKey: ["membership-plans", "import-validation"],
@@ -144,6 +209,8 @@ export function MembersImportExportActions() {
       const expiryDateRaw = getCell(cells, "expiryDate", "expiry_date");
       const statusRaw = getCell(cells, "status").toLowerCase();
       const paymentStatusRaw = getCell(cells, "paymentStatus", "payment_status").toLowerCase();
+      const paymentModeRaw = getCell(cells, "paymentMode", "payment_mode").toLowerCase();
+      const bankIdRaw = getCell(cells, "bankId", "bank_id");
       const paymentAmountRaw = getCell(cells, "paymentAmount", "payment_amount");
       const gymIdRaw = includeGymId ? getCell(cells, "gymId", "gym_id") : "";
 
@@ -178,6 +245,34 @@ export function MembersImportExportActions() {
       }
       if (!["paid", "unpaid"].includes(paymentStatusRaw)) {
         errors.push("Payment status must be paid or unpaid");
+      }
+      if (paymentStatusRaw === "paid") {
+        if (!paymentModeRaw.trim()) {
+          errors.push("Payment mode is required when payment status is paid (cash or bank)");
+        } else if (!["cash", "bank"].includes(paymentModeRaw)) {
+          errors.push("Payment mode must be cash or bank");
+        } else if (paymentModeRaw === "bank") {
+          const bid = bankIdRaw.trim() ? Number(bankIdRaw) : NaN;
+          if (!Number.isFinite(bid) || bid <= 0) {
+            errors.push("Bank Id is required when payment mode is bank");
+          } else if (banksQuery.isLoading) {
+            errors.push("Banks are still loading. Please retry.");
+          } else if (banksQuery.isError) {
+            errors.push("Unable to validate bank right now. Please retry.");
+          } else if (!(includeGymId && !gymIdRaw.trim())) {
+            const bKey = includeGymId
+              ? gymIdRaw.trim()
+                ? String(gymId)
+                : "null"
+              : String(currentUser?.gymId ?? "null");
+            const allowed = bankIdsByGym.get(bKey);
+            if (!allowed || !allowed.has(bid)) {
+              errors.push("Bank Id is not valid for this gym");
+            }
+          }
+        }
+      } else if (paymentModeRaw.trim() || bankIdRaw.trim()) {
+        errors.push("Payment mode and bank Id must be empty when payment status is unpaid");
       }
       if (Number.isNaN(paymentAmount) || paymentAmount < 0) {
         errors.push("Payment amount must be a non-negative number");
@@ -215,6 +310,8 @@ export function MembersImportExportActions() {
           expiryDate: expiryDateRaw.trim(),
           status: statusRaw.trim(),
           paymentStatus: paymentStatusRaw.trim(),
+          paymentMode: paymentModeRaw.trim(),
+          bankId: bankIdRaw.trim(),
           paymentAmount: paymentAmountRaw.trim(),
           gymId: gymIdRaw.trim(),
         },
@@ -227,6 +324,14 @@ export function MembersImportExportActions() {
           expiryDate: expiryDate ?? null,
           status: (statusRaw || "active") as "active" | "inactive" | "expired",
           paymentStatus: (paymentStatusRaw || "unpaid") as "paid" | "unpaid",
+          paymentMode:
+            paymentStatusRaw === "paid" && paymentModeRaw.trim()
+              ? (paymentModeRaw.trim() as "cash" | "bank")
+              : null,
+          bankId:
+            paymentStatusRaw === "paid" && paymentModeRaw === "bank" && bankIdRaw.trim()
+              ? Number(bankIdRaw)
+              : null,
           paymentAmount: Number.isNaN(paymentAmount) ? 0 : paymentAmount,
           gymId: includeGymId && gymIdRaw.trim() ? (gymId as number) : null,
         },
@@ -250,7 +355,7 @@ export function MembersImportExportActions() {
       templateSampleRow={
         includeGymId
           ? [...TEMPLATE_SAMPLE_ROW]
-          : TEMPLATE_SAMPLE_ROW.slice(0, TEMPLATE_SAMPLE_ROW.length - 1)
+          : TEMPLATE_SAMPLE_ROW.filter((_, i) => TEMPLATE_HEADERS[i] !== "gymId")
       }
       previewColumns={[
         { key: "name", label: "Name" },
@@ -261,6 +366,8 @@ export function MembersImportExportActions() {
         { key: "expiryDate", label: "Expiry Date" },
         { key: "status", label: "Status" },
         { key: "paymentStatus", label: "Payment Status" },
+        { key: "paymentMode", label: "Payment Mode" },
+        { key: "bankId", label: "Bank Id" },
         { key: "paymentAmount", label: "Payment Amount" },
         ...(includeGymId ? ([{ key: "gymId", label: "Gym ID" }] as const) : []),
       ]}

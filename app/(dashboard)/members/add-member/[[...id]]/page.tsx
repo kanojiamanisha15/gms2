@@ -30,6 +30,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { doGetGyms } from "@/lib/services/gyms";
 import { doGetMembershipPlans } from "@/lib/services/membership-plans";
+import { doGetBanks } from "@/lib/services/banks";
 import { formatDateForInput, calculateExpirationDate } from "@/lib/helpers";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { ContentLoader } from "@/components/ui/content-loader";
@@ -44,6 +45,8 @@ type MemberFormData = {
   expiryDate: string;
   status: "active" | "inactive" | "expired";
   paymentStatus: "paid" | "unpaid";
+  paymentMode: "" | "cash" | "bank";
+  bankId: string;
   paymentAmount: number;
 };
 
@@ -55,6 +58,11 @@ const statusLabels: Record<MemberFormData["status"], string> = {
 const paymentStatusLabels: Record<MemberFormData["paymentStatus"], string> = {
   paid: "Paid",
   unpaid: "Unpaid",
+};
+
+const paymentModeLabels: Record<Exclude<MemberFormData["paymentMode"], "">, string> = {
+  cash: "Cash",
+  bank: "Bank",
 };
 
 export default function AddMemberPage() {
@@ -75,6 +83,7 @@ export default function AddMemberPage() {
   const createMutation = useCreateMember();
   const updateMutation = useUpdateMember();
   const canLoadGyms = hasPermission(PERMISSIONS.GYMS_READ);
+  const canLoadBanks = hasPermission(PERMISSIONS.BANKS_READ);
   const showGymDropdown = isSuperAdmin;
 
   const {
@@ -109,6 +118,8 @@ export default function AddMemberPage() {
       expiryDate: "",
       status: "active",
       paymentStatus: "unpaid",
+      paymentMode: "",
+      bankId: "",
       paymentAmount: 0,
     },
   });
@@ -124,6 +135,31 @@ export default function AddMemberPage() {
         ? Number(selectedGymId)
         : undefined
       : currentUser?.gymId ?? undefined;
+
+  const paymentStatusWatch = form.watch("paymentStatus");
+  const paymentModeWatch = form.watch("paymentMode");
+
+  const { data: banksListData, isLoading: isBanksLoading } = useQuery({
+    queryKey: ["banks", "memberForm", planGymId],
+    queryFn: () =>
+      doGetBanks({
+        page: 1,
+        limit: 200,
+        sortBy: "bankName",
+        sortOrder: "asc",
+        gymId: planGymId ?? undefined,
+      }),
+    enabled: canLoadBanks && planGymId != null && paymentStatusWatch === "paid",
+  });
+  const bankOptions = banksListData?.banks ?? [];
+  const bankLabels = useMemo(
+    () =>
+      bankOptions.reduce<Record<string, string>>((acc, b) => {
+        acc[String(b.id)] = `${b.bankName} (${b.branchName})`;
+        return acc;
+      }, {}),
+    [bankOptions]
+  );
 
   const { data: plansData, isLoading: isPlansLoading } = useQuery({
     queryKey: ["membership-plans", "memberForm", planGymId],
@@ -149,6 +185,13 @@ export default function AddMemberPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joinDate, membershipType, isEditMode, plans]);
 
+  useEffect(() => {
+    if (paymentStatusWatch === "unpaid") {
+      form.setValue("paymentMode", "");
+      form.setValue("bankId", "");
+    }
+  }, [paymentStatusWatch, form]);
+
   // Populate form when member data is loaded (edit mode)
   useEffect(() => {
     if (!apiMember || !isEditMode) return;
@@ -163,6 +206,11 @@ export default function AddMemberPage() {
       expiryDate: formatDateForInput(apiMember.expiryDate),
       status: apiMember.status as MemberFormData["status"],
       paymentStatus: apiMember.paymentStatus as MemberFormData["paymentStatus"],
+      paymentMode:
+        (apiMember.paymentMode === "cash" || apiMember.paymentMode === "bank"
+          ? apiMember.paymentMode
+          : "") as MemberFormData["paymentMode"],
+      bankId: apiMember.bankId != null ? String(apiMember.bankId) : "",
       paymentAmount: apiMember.paymentAmount,
     });
   }, [apiMember, isEditMode, form]);
@@ -183,6 +231,16 @@ export default function AddMemberPage() {
       expiryDate: data.expiryDate,
       status: data.status,
       paymentStatus: data.paymentStatus,
+      paymentMode:
+        data.paymentStatus === "paid"
+          ? data.paymentMode === "cash" || data.paymentMode === "bank"
+            ? data.paymentMode
+            : null
+          : null,
+      bankId:
+        data.paymentStatus === "paid" && data.paymentMode === "bank" && String(data.bankId).trim()
+          ? Number(String(data.bankId).trim())
+          : null,
       paymentAmount: data.paymentAmount,
     };
 
@@ -460,7 +518,13 @@ export default function AddMemberPage() {
                         <FormLabel>Payment Status</FormLabel>
                         <FormControl>
                           <Select
-                            onValueChange={field.onChange}
+                            onValueChange={(v) => {
+                              field.onChange(v);
+                              if (v === "unpaid") {
+                                form.setValue("paymentMode", "");
+                                form.setValue("bankId", "");
+                              }
+                            }}
                             value={field.value}
                           >
                             <SelectTrigger className="w-full">
@@ -477,6 +541,112 @@ export default function AddMemberPage() {
                     )}
                     rules={{
                       required: "Payment status is required",
+                    }}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="paymentMode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Payment Mode
+                          {paymentStatusWatch === "paid" ? (
+                            <span className="ml-1 text-destructive">*</span>
+                          ) : null}
+                        </FormLabel>
+                        <FormControl>
+                          <Select
+                            onValueChange={(v) => {
+                              field.onChange(v);
+                              if (v !== "bank") {
+                                form.setValue("bankId", "");
+                              }
+                            }}
+                            value={field.value || undefined}
+                          >
+                            <SelectTrigger className="w-full" disabled={paymentStatusWatch !== "paid"}>
+                              <SelectValue
+                                placeholder={paymentStatusWatch !== "paid" ? "Select paid first" : "Select payment mode"}
+                                labels={paymentModeLabels}
+                              />
+                            </SelectTrigger>
+                            <SelectContent align="start">
+                              <SelectItem value="cash">Cash</SelectItem>
+                              {canLoadBanks ? <SelectItem value="bank">Bank</SelectItem> : null}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                    rules={{
+                      validate: (value) => {
+                        if (paymentStatusWatch !== "paid") return true;
+                        if (value !== "cash" && value !== "bank") {
+                          return "Payment mode is required when payment status is paid";
+                        }
+                        if (value === "bank" && !canLoadBanks) {
+                          return "Bank payment requires banks.read permission";
+                        }
+                        return true;
+                      },
+                    }}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="bankId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Bank
+                          {paymentStatusWatch === "paid" && paymentModeWatch === "bank" ? (
+                            <span className="ml-1 text-destructive">*</span>
+                          ) : null}
+                        </FormLabel>
+                        <FormControl>
+                          <Select onValueChange={field.onChange} value={field.value || undefined}>
+                            <SelectTrigger
+                              className="w-full"
+                              disabled={
+                                paymentStatusWatch !== "paid" ||
+                                paymentModeWatch !== "bank" ||
+                                !canLoadBanks ||
+                                isBanksLoading ||
+                                bankOptions.length === 0
+                              }
+                            >
+                              <SelectValue
+                                placeholder={
+                                  paymentStatusWatch !== "paid" || paymentModeWatch !== "bank"
+                                    ? "—"
+                                    : isBanksLoading
+                                      ? "Loading banks..."
+                                      : bankOptions.length === 0
+                                        ? "No banks for this gym"
+                                        : "Select bank"
+                                }
+                                labels={bankLabels}
+                              />
+                            </SelectTrigger>
+                            <SelectContent align="start">
+                              {bankOptions.map((b) => (
+                                <SelectItem key={b.id} value={String(b.id)}>
+                                  {b.bankName} — {b.branchName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                    rules={{
+                      validate: (value) => {
+                        if (paymentStatusWatch !== "paid" || paymentModeWatch !== "bank") return true;
+                        return !!String(value).trim() || "Bank is required when payment mode is bank";
+                      },
                     }}
                   />
 

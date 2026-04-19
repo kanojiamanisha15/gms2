@@ -20,7 +20,7 @@ import {
   userCanViewGyms,
   userCanViewMembershipPlans,
   userCanViewBanks,
-  userCanViewPayments,
+  userCanViewExpenses,
   userCanViewTrainers,
   userCanViewUsersPage,
 } from "@/lib/route-access";
@@ -100,8 +100,8 @@ export function AppSidebar({ user: userProp, ...props }: AppSidebarProps) {
     if (userCanViewBanks(userProp)) {
       items.push({ title: "Banks", url: "/banks", icon: Landmark });
     }
-    if (userCanViewPayments(userProp)) {
-      items.push({ title: "Payments and Invoice", url: "/payments", icon: Receipt });
+    if (userCanViewExpenses(userProp)) {
+      items.push({ title: "Expenses", url: "/expenses", icon: Receipt });
     }
     return items;
   }, [userProp]);

@@ -14,6 +14,8 @@ export interface MembersTableState {
     | "expiryDate"
     | "status"
     | "paymentStatus"
+    | "paymentMode"
+    | "bankName"
     | "paymentAmount"
     | "gymId";
   sortOrder: "asc" | "desc";
@@ -56,6 +58,8 @@ export const membersTableSlice = createSlice({
             | "expiryDate"
             | "status"
             | "paymentStatus"
+            | "paymentMode"
+            | "bankName"
             | "paymentAmount"
             | "gymId";
           desc: boolean;

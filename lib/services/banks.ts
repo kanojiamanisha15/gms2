@@ -35,6 +35,8 @@ export const doGetBanks = async (params?: {
   search?: string;
   page?: number;
   limit?: number;
+  /** Super-admin / explicit gym filter (passed as query param to API) */
+  gymId?: number | null;
   sortBy?:
     | "bankName"
     | "accountNumber"
@@ -65,6 +67,7 @@ export const doGetBanks = async (params?: {
       limit: limit.toString(),
       sortBy: params?.sortBy,
       sortOrder: params?.sortOrder,
+      ...(params?.gymId != null ? { gymId: String(params.gymId) } : {}),
     }
   );
 

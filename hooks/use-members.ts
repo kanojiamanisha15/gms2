@@ -46,7 +46,6 @@ export function useCreateMember() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast.success("Member added successfully");
@@ -81,7 +80,6 @@ export function useUpdateMember() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
       queryClient.invalidateQueries({ queryKey: ["members", variables.memberId] });
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast.success("Member updated successfully");

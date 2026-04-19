@@ -5,6 +5,7 @@ import { requirePermission, resolveRequestedGymScope, resolveGymScope } from '@/
 import { insertNotification } from '@/lib/db/notifications';
 import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { IUpdateMemberData, IMemberData, IMemberRow } from '@/types';
+import { resolveMemberPaymentFields } from '@/lib/db/member-payment';
 
 function mapMemberRowToResponse(row: IMemberRow): IMemberData {
   return {
@@ -18,7 +19,10 @@ function mapMemberRowToResponse(row: IMemberRow): IMemberData {
     expiryDate: row.expiry_date,
     status: row.status,
     paymentStatus: row.payment_status,
+    paymentMode: row.payment_mode ?? null,
     paymentAmount: parseFloat(row.payment_amount ?? '0'),
+    bankId: row.bank_id ?? null,
+    bankName: row.bank_name ?? null,
     gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
@@ -47,12 +51,14 @@ export async function GET(
     }
 
     const row = await queryOne<IMemberRow>(
-      `SELECT id, member_id, name, email, phone, membership_type,
-              join_date, expiry_date, status, payment_status, payment_amount, gym_id,
-              created_at, updated_at
-       FROM members
-       WHERE member_id = $1
-         AND ($2::int IS NULL OR gym_id = $2)`,
+      `SELECT m.id, m.member_id, m.name, m.email, m.phone, m.membership_type,
+              m.join_date, m.expiry_date, m.status, m.payment_status, m.payment_mode, m.payment_amount,
+              m.bank_id, b.bank_name AS bank_name, m.gym_id,
+              m.created_at, m.updated_at
+       FROM members m
+       LEFT JOIN banks b ON m.bank_id = b.id
+       WHERE m.member_id = $1
+         AND ($2::int IS NULL OR m.gym_id = $2)`,
       [memberId, scope.gymId]
     );
 
@@ -108,6 +114,8 @@ export async function PUT(
     const expiryDate = body.expiryDate != null ? (String(body.expiryDate).trim() || null) : undefined;
     const status = body.status;
     const paymentStatus = body.paymentStatus;
+    const paymentMode = body.paymentMode;
+    const bankId = body.bankId;
     const paymentAmount = body.paymentAmount != null ? Number(body.paymentAmount) : undefined;
     const writeScope = resolveRequestedGymScope(authz, body.gymId, { allowUndefined: true });
     if (writeScope.error) return writeScope.error;
@@ -130,7 +138,7 @@ export async function PUT(
 
     const existing = await queryOne<IMemberRow>(
       `SELECT id, member_id, name, email, phone, membership_type,
-              join_date, expiry_date, status, payment_status, payment_amount, gym_id
+              join_date, expiry_date, status, payment_status, payment_mode, payment_amount, bank_id, gym_id
        FROM members
        WHERE member_id = $1
          AND ($2::int IS NULL OR gym_id = $2)`,
@@ -152,6 +160,38 @@ export async function PUT(
           { status: 400 }
         );
       }
+    }
+
+    const mergedGymId = gymId !== undefined ? gymId : existing.gym_id;
+    const touchesPaymentMeta =
+      paymentStatus !== undefined || paymentMode !== undefined || bankId !== undefined;
+
+    let paymentResolved: { ok: true; value: { payment_mode: string | null; bank_id: number | null } };
+    if (touchesPaymentMeta) {
+      const mergedPaymentStatus =
+        paymentStatus !== undefined ? paymentStatus : existing.payment_status;
+      const mergedPaymentMode =
+        paymentMode !== undefined ? paymentMode : existing.payment_mode;
+      const mergedBankId = bankId !== undefined ? bankId : existing.bank_id;
+      const resolved = await resolveMemberPaymentFields(
+        mergedPaymentStatus,
+        mergedPaymentMode,
+        mergedBankId,
+        mergedGymId,
+        null
+      );
+      if (!resolved.ok) {
+        return NextResponse.json({ success: false, error: resolved.error }, { status: 400 });
+      }
+      paymentResolved = resolved;
+    } else {
+      paymentResolved = {
+        ok: true,
+        value: {
+          payment_mode: existing.payment_mode ?? null,
+          bank_id: existing.bank_id ?? null,
+        },
+      };
     }
 
     const updates: string[] = [];
@@ -203,6 +243,14 @@ export async function PUT(
       values.push(paymentAmount);
       paramIndex++;
     }
+    if (touchesPaymentMeta) {
+      updates.push(`payment_mode = $${paramIndex}`);
+      values.push(paymentResolved.value.payment_mode);
+      paramIndex++;
+      updates.push(`bank_id = $${paramIndex}`);
+      values.push(paymentResolved.value.bank_id);
+      paramIndex++;
+    }
     if (gymId !== undefined) {
       updates.push(`gym_id = $${paramIndex}`);
       values.push(gymId);
@@ -224,7 +272,7 @@ export async function PUT(
       SET ${updates.join(', ')}
       WHERE member_id = $${paramIndex}
       RETURNING id, member_id, name, email, phone, membership_type,
-                join_date, expiry_date, status, payment_status, payment_amount, gym_id,
+                join_date, expiry_date, status, payment_status, payment_mode, payment_amount, bank_id, gym_id,
                 created_at, updated_at
     `;
     const row = await queryOne<IMemberRow>(updateSql, values);
@@ -235,6 +283,18 @@ export async function PUT(
         { status: 500 }
       );
     }
+
+    const rowWithBank =
+      (await queryOne<IMemberRow>(
+        `SELECT m.id, m.member_id, m.name, m.email, m.phone, m.membership_type,
+                m.join_date, m.expiry_date, m.status, m.payment_status, m.payment_mode, m.payment_amount,
+                m.bank_id, b.bank_name AS bank_name, m.gym_id,
+                m.created_at, m.updated_at
+         FROM members m
+         LEFT JOIN banks b ON m.bank_id = b.id
+         WHERE m.member_id = $1`,
+        [memberId]
+      )) ?? row;
 
     if (paymentStatus === 'paid' && existing.payment_status !== 'paid') {
       const amount = parseFloat(String(row.payment_amount ?? '0'));
@@ -253,7 +313,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: { member: mapMemberRowToResponse(row) },
+      data: { member: mapMemberRowToResponse(rowWithBank) },
     });
   } catch (error) {
     console.error('Update member error:', error);

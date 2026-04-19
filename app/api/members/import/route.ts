@@ -6,6 +6,7 @@ import { insertNotification } from "@/lib/db/notifications";
 import { generateMemberId } from "@/lib/utils/member-id";
 import { normalizePhoneToIndia } from "@/lib/helpers";
 import type { IMemberData, IMemberRow } from "@/types";
+import { resolveMemberPaymentFields } from "@/lib/db/member-payment";
 
 type ImportMemberRowInput = {
   name?: string;
@@ -16,6 +17,8 @@ type ImportMemberRowInput = {
   expiryDate?: string | null;
   status?: "active" | "inactive" | "expired" | string;
   paymentStatus?: "paid" | "unpaid" | string;
+  paymentMode?: string | null;
+  bankId?: number | string | null;
   paymentAmount?: number | string | null;
   gymId?: number | null;
 };
@@ -39,7 +42,10 @@ function mapMemberRowToResponse(row: IMemberRow): IMemberData {
     expiryDate: row.expiry_date,
     status: row.status,
     paymentStatus: row.payment_status,
+    paymentMode: row.payment_mode ?? null,
     paymentAmount: parseFloat(row.payment_amount ?? "0"),
+    bankId: row.bank_id ?? null,
+    bankName: row.bank_name ?? null,
     gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
@@ -169,6 +175,18 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        const paymentResolved = await resolveMemberPaymentFields(
+          paymentStatus,
+          row.paymentMode,
+          row.bankId,
+          gymId ?? null,
+          client
+        );
+        if (!paymentResolved.ok) {
+          errors.push({ rowNumber, message: paymentResolved.error });
+          continue;
+        }
+
         const planResult = await client.query<{ id: number }>(
           `SELECT id
            FROM membership_plans
@@ -201,11 +219,11 @@ export async function POST(request: NextRequest) {
         const inserted = await client.query<IMemberRow>(
           `INSERT INTO members (
              member_id, name, email, phone, membership_type,
-             join_date, expiry_date, status, payment_status, payment_amount, gym_id
+             join_date, expiry_date, status, payment_status, payment_mode, payment_amount, bank_id, gym_id
            )
-           VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10, $11)
+           VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10, $11, $12, $13)
            RETURNING id, member_id, name, email, phone, membership_type,
-                     join_date, expiry_date, status, payment_status, payment_amount, gym_id,
+                     join_date, expiry_date, status, payment_status, payment_mode, payment_amount, bank_id, gym_id,
                      created_at, updated_at`,
           [
             memberId,
@@ -217,7 +235,9 @@ export async function POST(request: NextRequest) {
             expiryDate,
             status,
             paymentStatus,
+            paymentResolved.value.payment_mode,
             paymentAmount,
+            paymentResolved.value.bank_id,
             gymId ?? null,
           ]
         );

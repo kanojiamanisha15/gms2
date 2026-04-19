@@ -1,3 +1,6 @@
+/** cash = paid in cash; bank = paid via bank account from banks master */
+export type MemberPaymentMode = "cash" | "bank";
+
 /** Member shape used across the app (table, forms, etc.) */
 export interface ICreateMemberData {
   name: string;
@@ -8,6 +11,10 @@ export interface ICreateMemberData {
   expiryDate: string | null;
   status: "active" | "inactive" | "expired";
   paymentStatus: "paid" | "unpaid";
+  /** Required when paymentStatus is paid */
+  paymentMode?: MemberPaymentMode | null;
+  /** Required when paymentStatus is paid and paymentMode is bank */
+  bankId?: number | null;
   paymentAmount: number;
   gymId?: number | null;
 }
@@ -21,6 +28,8 @@ export interface IUpdateMemberData {
   expiryDate?: string | null;
   status?: "active" | "inactive" | "expired";
   paymentStatus?: "paid" | "unpaid";
+  paymentMode?: MemberPaymentMode | null;
+  bankId?: number | null;
   paymentAmount?: number;
   gymId?: number | null;
 }
@@ -37,7 +46,10 @@ export interface IMemberRow {
   expiry_date: string | null;
   status: string;
   payment_status: string;
+  payment_mode: string | null;
   payment_amount: string;
+  bank_id: number | null;
+  bank_name?: string | null;
   gym_id: number | null;
   created_at: Date;
   updated_at: Date;
@@ -54,7 +66,10 @@ export interface IMemberData {
   expiryDate: string | null;
   status: string;
   paymentStatus: string;
+  paymentMode: string | null;
   paymentAmount: number;
+  bankId: number | null;
+  bankName?: string | null;
   gymId: number | null;
   createdAt?: string;
   updatedAt?: string;

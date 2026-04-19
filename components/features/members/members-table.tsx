@@ -26,7 +26,6 @@ function ActionsCell({ member }: { member: IMemberData }) {
       if (response.success) {
         toast.success("Member deleted successfully");
         queryClient.invalidateQueries({ queryKey: ["members"] });
-        queryClient.invalidateQueries({ queryKey: ["payments"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
       } else {
@@ -182,6 +181,40 @@ const baseColumns: ColumnDef<IMemberData>[] = [
     },
   },
   {
+    accessorKey: "paymentMode",
+    header: "Payment mode",
+    enableSorting: true,
+    cell: ({ row }) => {
+      const paid = row.original.paymentStatus === "paid";
+      const mode = row.original.paymentMode;
+      if (!paid || !mode) {
+        return <span className="text-muted-foreground">—</span>;
+      }
+      const label = mode === "bank" ? "Bank" : mode === "cash" ? "Cash" : mode;
+      return <div className="capitalize">{label}</div>;
+    },
+  },
+  {
+    accessorKey: "bankName",
+    id: "bankName",
+    header: "Bank",
+    enableSorting: true,
+    cell: ({ row }) => {
+      const paid = row.original.paymentStatus === "paid";
+      const mode = row.original.paymentMode;
+      if (!paid || mode !== "bank") {
+        return <span className="text-muted-foreground">—</span>;
+      }
+      const name = row.original.bankName;
+      if (name) return <div className="max-w-[200px] truncate">{name}</div>;
+      return (
+        <span className="font-mono text-xs text-muted-foreground tabular-nums">
+          #{row.original.bankId ?? "—"}
+        </span>
+      );
+    },
+  },
+  {
     accessorKey: "paymentAmount",
     header: "Payment Amount",
     cell: ({ row }) => {
@@ -291,6 +324,8 @@ export function MembersTable() {
               first.id === "expiryDate" ||
               first.id === "status" ||
               first.id === "paymentStatus" ||
+              first.id === "paymentMode" ||
+              first.id === "bankName" ||
               first.id === "paymentAmount" ||
               first.id === "gymId")
             ? { id: first.id, desc: !!first.desc }

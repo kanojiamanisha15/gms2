@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS members (
   expiry_date DATE,
   status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'expired')),
   payment_status VARCHAR(50) DEFAULT 'unpaid' CHECK (payment_status IN ('paid', 'unpaid')),
+  payment_mode VARCHAR(50),
   payment_amount DECIMAL(10, 2) DEFAULT 0.00,
+  bank_id INTEGER,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -39,17 +41,6 @@ CREATE TABLE IF NOT EXISTS membership_plans (
   status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Payments table (member payments/subscriptions)
-CREATE TABLE IF NOT EXISTS payments (
-  id SERIAL PRIMARY KEY,
-  member_id INTEGER REFERENCES members(id),
-  amount DECIMAL(10, 2) NOT NULL,
-  payment_date DATE DEFAULT CURRENT_DATE,
-  payment_method VARCHAR(50),
-  status VARCHAR(50) DEFAULT 'completed',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Expenses table (gym expenses)
@@ -79,6 +70,8 @@ CREATE TABLE IF NOT EXISTS banks (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE members ADD CONSTRAINT members_bank_id_fkey FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- Attendance table
 CREATE TABLE IF NOT EXISTS attendance (

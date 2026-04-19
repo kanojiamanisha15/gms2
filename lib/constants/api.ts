@@ -24,7 +24,6 @@ export const API_ENDPOINTS = {
   MEMBERSHIP_PLANS: '/api/membership-plans',
   EXPENSES: '/api/expenses',
   BANKS: '/api/banks',
-  PAYMENTS_OVERVIEW: '/api/payments/overview',
   DASHBOARD_OVERVIEW: '/api/dashboard/overview',
   NOTIFICATIONS: '/api/notifications',
   NOTIFICATIONS_READ_ALL: '/api/notifications/read-all',

@@ -6,19 +6,22 @@ import { insertNotification } from '@/lib/db/notifications';
 import { generateMemberId } from '@/lib/utils/member-id';
 import { normalizePhoneToIndia } from '@/lib/helpers';
 import type { ICreateMemberData, IMemberData, IMemberRow } from '@/types';
+import { resolveMemberPaymentFields } from '@/lib/db/member-payment';
 
 const SORT_FIELDS = {
-  memberId: 'member_id',
-  name: 'name',
-  email: 'email',
-  phone: 'phone',
-  membershipType: 'membership_type',
-  joinDate: 'join_date',
-  expiryDate: 'expiry_date',
-  status: 'status',
-  paymentStatus: 'payment_status',
-  paymentAmount: 'payment_amount',
-  gymId: 'gym_id',
+  memberId: 'm.member_id',
+  name: 'm.name',
+  email: 'm.email',
+  phone: 'm.phone',
+  membershipType: 'm.membership_type',
+  joinDate: 'm.join_date',
+  expiryDate: 'm.expiry_date',
+  status: 'm.status',
+  paymentStatus: 'm.payment_status',
+  paymentAmount: 'm.payment_amount',
+  paymentMode: 'm.payment_mode',
+  bankName: 'b.bank_name',
+  gymId: 'm.gym_id',
 } as const;
 
 const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
@@ -35,7 +38,10 @@ function mapMemberRowToResponse(row: IMemberRow): IMemberData {
     expiryDate: row.expiry_date,
     status: row.status,
     paymentStatus: row.payment_status,
+    paymentMode: row.payment_mode ?? null,
     paymentAmount: parseFloat(row.payment_amount ?? '0'),
+    bankId: row.bank_id ?? null,
+    bankName: row.bank_name ?? null,
     gymId: row.gym_id,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
@@ -72,32 +78,34 @@ export async function GET(request: NextRequest) {
 
     if (search?.trim()) {
       conditions.push(
-        `(name ILIKE $${paramIndex} OR email ILIKE $${paramIndex} OR member_id ILIKE $${paramIndex})`
+        `(m.name ILIKE $${paramIndex} OR m.email ILIKE $${paramIndex} OR m.member_id ILIKE $${paramIndex})`
       );
       sqlParams.push(`%${search.trim()}%`);
       paramIndex++;
     }
     if (scope.gymId != null) {
-      conditions.push(`gym_id = $${paramIndex}`);
+      conditions.push(`m.gym_id = $${paramIndex}`);
       sqlParams.push(scope.gymId);
       paramIndex++;
     }
 
     const whereSql = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
-    const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, id DESC`;
+    const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, m.id DESC`;
 
     const countRows = await query<{ total: string }>(
-      `SELECT COUNT(*) as total FROM members${whereSql}`,
+      `SELECT COUNT(*) as total FROM members m${whereSql}`,
       sqlParams
     );
     const total = parseInt(countRows[0]?.total ?? '0', 10);
     const totalPages = Math.ceil(total / limitNum);
 
     const membersSql = `
-      SELECT id, member_id, name, email, phone, membership_type,
-             join_date, expiry_date, status, payment_status, payment_amount, gym_id,
-             created_at, updated_at
-      FROM members
+      SELECT m.id, m.member_id, m.name, m.email, m.phone, m.membership_type,
+             m.join_date, m.expiry_date, m.status, m.payment_status, m.payment_mode, m.payment_amount,
+             m.bank_id, b.bank_name AS bank_name, m.gym_id,
+             m.created_at, m.updated_at
+      FROM members m
+      LEFT JOIN banks b ON m.bank_id = b.id
       ${whereSql}
       ORDER BY ${orderBySql}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -212,6 +220,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const memberGymId = gymId ?? null;
+    const paymentResolved = await resolveMemberPaymentFields(
+      paymentStatus,
+      body.paymentMode,
+      body.bankId,
+      memberGymId,
+      null
+    );
+    if (!paymentResolved.ok) {
+      return NextResponse.json({ success: false, error: paymentResolved.error }, { status: 400 });
+    }
+
     // Next sequential number for same join_date month/year
     const countRows = await query<{ count: string }>(
       `SELECT COUNT(*) AS count FROM members
@@ -224,11 +244,11 @@ export async function POST(request: NextRequest) {
     const insertSql = `
       INSERT INTO members (
         member_id, name, email, phone, membership_type,
-        join_date, expiry_date, status, payment_status, payment_amount, gym_id
+        join_date, expiry_date, status, payment_status, payment_mode, payment_amount, bank_id, gym_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $6::date, $7::date, $8, $9, $10, $11, $12, $13)
       RETURNING id, member_id, name, email, phone, membership_type,
-                join_date, expiry_date, status, payment_status, payment_amount, gym_id,
+                join_date, expiry_date, status, payment_status, payment_mode, payment_amount, bank_id, gym_id,
                 created_at, updated_at
     `;
     const row = await queryOne<IMemberRow>(insertSql, [
@@ -241,8 +261,10 @@ export async function POST(request: NextRequest) {
       expiryDate,
       status,
       paymentStatus,
+      paymentResolved.value.payment_mode,
       paymentAmount,
-      gymId,
+      paymentResolved.value.bank_id,
+      memberGymId,
     ]);
 
     if (!row) {

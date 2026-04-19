@@ -5,17 +5,19 @@ import { requirePermission, resolveRequestedGymScope } from "@/lib/services/auth
 import type { IMemberRow } from "@/types";
 
 const SORT_FIELDS = {
-  memberId: "member_id",
-  name: "name",
-  email: "email",
-  phone: "phone",
-  membershipType: "membership_type",
-  joinDate: "join_date",
-  expiryDate: "expiry_date",
-  status: "status",
-  paymentStatus: "payment_status",
-  paymentAmount: "payment_amount",
-  gymId: "gym_id",
+  memberId: "m.member_id",
+  name: "m.name",
+  email: "m.email",
+  phone: "m.phone",
+  membershipType: "m.membership_type",
+  joinDate: "m.join_date",
+  expiryDate: "m.expiry_date",
+  status: "m.status",
+  paymentStatus: "m.payment_status",
+  paymentAmount: "m.payment_amount",
+  paymentMode: "m.payment_mode",
+  bankName: "b.bank_name",
+  gymId: "m.gym_id",
 } as const;
 
 function toCsvCell(value: unknown): string {
@@ -56,25 +58,26 @@ export async function GET(request: NextRequest) {
 
     if (search?.trim()) {
       conditions.push(
-        `(name ILIKE $${paramIndex} OR email ILIKE $${paramIndex} OR member_id ILIKE $${paramIndex})`
+        `(m.name ILIKE $${paramIndex} OR m.email ILIKE $${paramIndex} OR m.member_id ILIKE $${paramIndex})`
       );
       sqlParams.push(`%${search.trim()}%`);
       paramIndex++;
     }
 
     if (scope.gymId != null) {
-      conditions.push(`gym_id = $${paramIndex}`);
+      conditions.push(`m.gym_id = $${paramIndex}`);
       sqlParams.push(scope.gymId);
       paramIndex++;
     }
 
     const whereSql = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
-    const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, id DESC`;
+    const orderBySql = `${SORT_FIELDS[sortBy]} ${sortOrder}, m.id DESC`;
 
     const rows = await query<IMemberRow>(
-      `SELECT id, member_id, name, email, phone, membership_type, join_date, expiry_date,
-              status, payment_status, payment_amount, gym_id
-       FROM members
+      `SELECT m.id, m.member_id, m.name, m.email, m.phone, m.membership_type, m.join_date, m.expiry_date,
+              m.status, m.payment_status, m.payment_mode, m.payment_amount, m.bank_id, b.bank_name AS bank_name, m.gym_id
+       FROM members m
+       LEFT JOIN banks b ON m.bank_id = b.id
        ${whereSql}
        ORDER BY ${orderBySql}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -91,6 +94,9 @@ export async function GET(request: NextRequest) {
       "expiryDate",
       "status",
       "paymentStatus",
+      "paymentMode",
+      "bankId",
+      "bankName",
       "paymentAmount",
       ...(includeGymId ? ["gymId"] : []),
     ];
@@ -106,6 +112,9 @@ export async function GET(request: NextRequest) {
         row.expiry_date,
         row.status,
         row.payment_status,
+        row.payment_mode ?? "",
+        row.bank_id ?? "",
+        row.bank_name ?? "",
         row.payment_amount,
         ...(includeGymId ? [row.gym_id] : []),
       ]

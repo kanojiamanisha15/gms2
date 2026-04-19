@@ -40,6 +40,8 @@ export type ImportMemberRow = {
   expiryDate: string | null;
   status: "active" | "inactive" | "expired";
   paymentStatus: "paid" | "unpaid";
+  paymentMode?: "cash" | "bank" | null;
+  bankId?: number | null;
   paymentAmount: number;
   gymId?: number | null;
 };
@@ -70,6 +72,8 @@ export const doGetMembers = async (params?: {
     | 'expiryDate'
     | 'status'
     | 'paymentStatus'
+    | 'paymentMode'
+    | 'bankName'
     | 'paymentAmount'
     | 'gymId';
   sortOrder?: 'asc' | 'desc';
@@ -193,6 +197,8 @@ export const doCreateMember = async (
       expiryDate: memberData.expiryDate,
       status: memberData.status,
       paymentStatus: memberData.paymentStatus,
+      paymentMode: memberData.paymentMode ?? null,
+      bankId: memberData.bankId ?? null,
       paymentAmount: memberData.paymentAmount,
       gymId: memberData.gymId ?? null,
     }

@@ -1,5 +1,4 @@
 // prisma/seed.ts
-import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 import { seedDefaultUser } from '@/lib/db/seeds/default-user';
@@ -18,17 +17,6 @@ if (!databaseUrl) {
     process.exit(1);
 }
 process.env.DATABASE_URL = databaseUrl;
-
-console.log('Applying database migrations...');
-try {
-    execSync('npx prisma migrate deploy', {
-        stdio: 'inherit',
-        cwd: process.cwd(),
-        env: process.env,
-    });
-} catch {
-    process.exit(1);
-}
 
 async function seedGyms() {
     const existing = await queryOne<{ count: string }>(
@@ -979,11 +967,13 @@ async function seedMembers() {
         expiry_date,
         status,
         payment_status,
+        payment_mode,
         payment_amount,
+        bank_id,
         gym_id,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())`,
             [
                 m.member_id,
                 m.name,
@@ -994,142 +984,11 @@ async function seedMembers() {
                 m.expiry_date,
                 m.status,
                 m.payment_status,
+                m.payment_status === 'paid' ? 'cash' : null,
                 m.payment_amount,
+                null,
                 m.gym_id,
             ]
-        );
-    }
-}
-
-async function seedPayments() {
-    const existing = await queryOne<{ count: string }>(
-        'SELECT COUNT(*)::text AS count FROM payments'
-    );
-    if (existing && existing.count !== '0') {
-        return;
-    }
-
-    const payments = [
-        // 2025 payments
-        {
-            member_code: '5JA01',
-            amount: 299.99,
-            payment_date: '2025-04-05',
-            method: 'UPI',
-            status: 'completed',
-            gym_id: 1,
-        },
-        {
-            member_code: '5DE01',
-            amount: 299.99,
-            payment_date: '2025-05-10',
-            method: 'Card',
-            status: 'completed',
-            gym_id: 2,
-        },
-        {
-            member_code: '3DE01',
-            amount: 199.99,
-            payment_date: '2025-06-15',
-            method: 'Cash',
-            status: 'pending',
-            gym_id: 3,
-        },
-        {
-            member_code: '5OC01',
-            amount: 299.99,
-            payment_date: '2025-07-01',
-            method: 'UPI',
-            status: 'completed',
-            gym_id: 1,
-        },
-        {
-            member_code: '4JA01',
-            amount: 199.99,
-            payment_date: '2025-08-12',
-            method: 'Card',
-            status: 'completed',
-            gym_id: 2,
-        },
-        {
-            member_code: '5JA02',
-            amount: 299.99,
-            payment_date: '2025-09-03',
-            method: 'UPI',
-            status: 'completed',
-            gym_id: 3,
-        },
-        {
-            member_code: '3NO01',
-            amount: 199.99,
-            payment_date: '2025-10-20',
-            method: 'Cash',
-            status: 'completed',
-            gym_id: 1,
-        },
-        {
-            member_code: '5DE02',
-            amount: 299.99,
-            payment_date: '2025-11-08',
-            method: 'Card',
-            status: 'completed',
-            gym_id: 2,
-        },
-        {
-            member_code: '4JA02',
-            amount: 199.99,
-            payment_date: '2025-12-18',
-            method: 'UPI',
-            status: 'pending',
-            gym_id: 3,
-        },
-        // 2026 payments – around current dashboard period
-        {
-            member_code: '4FE01',
-            amount: 199.99,
-            payment_date: '2026-01-05',
-            method: 'UPI',
-            status: 'completed',
-            gym_id: 1,
-        },
-        {
-            member_code: '3OC01',
-            amount: 199.99,
-            payment_date: '2026-02-10',
-            method: 'Card',
-            status: 'completed',
-            gym_id: 2,
-        },
-        {
-            member_code: '5OC02',
-            amount: 299.99,
-            payment_date: '2026-03-02',
-            method: 'UPI',
-            status: 'completed',
-            gym_id: 3,
-        },
-    ];
-
-    for (const p of payments) {
-        await query(
-            `INSERT INTO payments (
-        member_id,
-        amount,
-        payment_date,
-        payment_method,
-        status,
-        gym_id,
-        created_at
-      ) VALUES (
-        (SELECT id FROM members WHERE member_id = $1),
-        $2,
-        $3,
-        $4,
-        $5,
-        $6,
-        NOW()
-      )`,
-            [p.member_code, p.amount, p.payment_date, p.method, p.status, p.gym_id]
         );
     }
 }
@@ -1694,7 +1553,6 @@ async function main() {
     await seedGyms();
     await seedUsersForGyms();
     await seedMembers();
-    await seedPayments();
     await seedMembershipPlans();
     await seedTrainers();
     await seedExpenses();

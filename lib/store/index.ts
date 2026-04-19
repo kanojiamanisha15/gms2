@@ -79,7 +79,23 @@ export function useMembersTableActions() {
     setLimit: useCallback((limit: number) => dispatch(setMembersLimit(limit)), [dispatch]),
     setSorting: useCallback(
       (
-        sorting: { id: "memberId" | "name" | "email" | "phone" | "membershipType" | "joinDate" | "expiryDate" | "status" | "paymentStatus" | "paymentAmount" | "gymId"; desc: boolean } | null
+        sorting: {
+          id:
+            | "memberId"
+            | "name"
+            | "email"
+            | "phone"
+            | "membershipType"
+            | "joinDate"
+            | "expiryDate"
+            | "status"
+            | "paymentStatus"
+            | "paymentMode"
+            | "bankName"
+            | "paymentAmount"
+            | "gymId";
+          desc: boolean;
+        } | null
       ) => dispatch(setMembersSorting(sorting)),
       [dispatch]
     ),
